@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -39,65 +39,76 @@
 
 namespace ros {
 
-  /*
-   * This class is responsible for controlling the node ouput.
-   * It it is the object that is passed to Publishers and services
-   */
-  class NodeOutput_{
+   // This class is responsible for controlling the node ouput.
+   // It it is the object that is passed to Publishers and services
+  class NodeOutput_ {
     public:
-      virtual int publish(int id, Msg* msg)=0;
+      // Publishes the provided message and returns the number of bytes
+      // written.
+      virtual int publish(int id, Msg* msg) = 0;
   };
 
-  template<class Hardware, int OUTSIZE =512>
-  class NodeOutput : public NodeOutput_{
-
-    private:
-      Hardware* hardware_;
-      bool configured_;
-      unsigned char message_out[OUTSIZE];
-
+  template<class Hardware, int BUFFER_SIZE=512>
+  class NodeOutput : public NodeOutput_ {
     public:
-      NodeOutput(Hardware* h){
-        hardware_ = h;
+      NodeOutput() : hardware_(NULL), configured_(false) {}
+      NodeOutput(Hardware* hardware) : hardware_(hardware), configured_(false) {}
+
+      void setHardware(Hardware* hardware) {
+        hardware_ = hardware;
         configured_ = false;
       }
 
-      NodeOutput(){};
-
-      void setHardware(Hardware* h){
-        hardware_  = h;
-        configured_=false;
+      void setConfigured(bool configured){
+        configured_ = configured;
       }
-       
-      void setConfigured(bool b){
-        configured_ =b;
+
+      bool configured() {
+        return configured_;
       }
-      bool configured(){return configured_;};
 
-      virtual int publish(int id, Msg * msg){
-        if(!configured_) return 0;
+      virtual int publish(int id, Msg* msg) {
+        if (!configured_) {
+          return 0;
+        }
 
-        /* serialize message */
-        int l = msg->serialize(message_out+6);
+        // TODO(damonkohler): The serialization should check that we don't
+        // overflow our buffer.
+        int length = msg->serialize(message_out + 6);
+        if (length > BUFFER_SIZE) {
+          // It would be better to crash horribly. That will probably happen anyway though...
+          return 0;
+        }
 
-        /* setup the header */
+        // Build the header
+        // Sync flags
         message_out[0] = 0xff;
         message_out[1] = 0xff;
-        message_out[2] = (unsigned char) id&255;
-        message_out[3] = (unsigned char) id>>8;
-        message_out[4] = (unsigned char) l&255;
-        message_out[5] = ((unsigned char) l>>8);
+        // Topic ID
+        message_out[2] = (unsigned char) id & 255;
+        message_out[3] = (unsigned char) id >> 8;
+        // Data length
+        message_out[4] = (unsigned char) length & 255;
+        message_out[5] = ((unsigned char) length >> 8);
 
-        /* calculate checksum */
+        // calculate checksum
         int chk = 0;
-        for(int i =2; i<l+6; i++)
+        for (int i = 2; i < length + 6; i++) {
           chk += message_out[i];
-        l += 6;
-        message_out[l++] = 255 - (chk%256);
-
-        hardware_->write(message_out, l);
-        return l;
+        }
+        length += 6;
+        message_out[length++] = 255 - (chk % 256);
+        hardware_->write(message_out, length);
+        return length;
       }
+
+    private:
+      NodeOutput(const NodeOutput&);
+      void operator=(const NodeOutput&);
+
+      Hardware* hardware_;
+      bool configured_;
+      unsigned char message_out[BUFFER_SIZE];
   };
 
 }

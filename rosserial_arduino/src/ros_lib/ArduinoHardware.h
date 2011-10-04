@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -35,46 +35,46 @@
 #ifndef ROS_ARDUINO_HARDWARE_H_
 #define ROS_ARDUINO_HARDWARE_H_
 
-#include "WProgram.h"
+#include <WProgram.h>
 #include <HardwareSerial.h>
 
 class ArduinoHardware {
   public:
-    ArduinoHardware(HardwareSerial* io , long baud= 57600){
-      iostream = io;
-      baud_ = baud;
-    }
-    ArduinoHardware()
-    {
-      iostream = &Serial;
-      baud_ = 57600;
-    }
-    ArduinoHardware(ArduinoHardware& h){
-      this->baud_ = h.baud_;
-      this->iostream = iostream;
-    }
-  
-    void setBaud(long baud){
+    ArduinoHardware() : iostream_(&Serial), baud_(57600) {}
+    ArduinoHardware(HardwareSerial* iostream, long baud=57600)
+        : iostream_(iostream), baud_(baud) {}
+
+    void setBaud(long baud) {
       this->baud_= baud;
     }
-  
-    int getBaud(){return baud_;}
 
-    void init(){
-      iostream->begin(baud_);
+    int getBaud() {
+      return baud_;
     }
 
-    int read(){return iostream->read();};
-    void write(uint8_t* data, int length){
-      for(int i=0; i<length; i++)
-        iostream->write(data[i]);
+    void init() {
+      iostream_->begin(baud_);
     }
 
-    unsigned long time(){return millis();}
+    int read() {
+      return iostream_->read();
+    }
+
+    void write(uint8_t* data, int length) {
+      iostream_->write(data, length);
+    }
+
+    unsigned long time() {
+      return millis();
+    }
 
   protected:
     long baud_;
-    HardwareSerial* iostream;
+    HardwareSerial* iostream_;
+
+  private:
+    ArduinoHardware(const ArduinoHardware&);
+    void operator=(const ArduinoHardware&);
 };
 
 #endif
