@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -36,16 +36,13 @@
 #define ROS_MSG_H_
 
 namespace ros {
-
-  /* Base Message Type */
-  class Msg
-  {
+  // Message base class
+  class Msg {
     public:
-      virtual int serialize(unsigned char *outbuffer) = 0;
-	  virtual int deserialize(unsigned char *data) = 0;
-      virtual const char * getType() = 0;
+      virtual int serialize(unsigned char* outbuffer) = 0;
+      virtual int deserialize(unsigned char* data) = 0;
+      virtual const char* getType() = 0;
   };
-
 }
 
 #endif

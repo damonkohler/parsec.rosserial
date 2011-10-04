@@ -66,15 +66,15 @@ find_path(ARDUINO_SDK_PATH
 
 include(Platform/ArduinoPaths)
 
-set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "-Wl,--as-needed -Wl,--relax -Wl,--gc-sections")
-# -Wl,--relax #-Wl,--gc-sections reduced code size from 50% to 18% 
+set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "-Wl,--as-needed -Wl,--relax -Wl,--gc-sections,-lm")
+# -Wl,--relax #-Wl,--gc-sections reduced code size from 50% to 18%
 # http://www.avrfreaks.net/index.php?name=PNphpBB2&file=viewtopic&t=91828&highlight=compile+program+programme+size
 
-#great explanation on avr compiler flags
-#http://www.tty1.net/blog/2008-04-29-avr-gcc-optimisations_en.html
+# great explanation on avr compiler flags
+# http://www.tty1.net/blog/2008-04-29-avr-gcc-optimisations_en.html
 
 # C only fine tunning
-set(TUNNING_FLAGS "-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums") 
+set(TUNNING_FLAGS "-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums")
 
 SET(CPP_FLAGS " -ffunction-sections -fdata-sections -fno-tree-loop-optimize -fno-move-loop-invariants")
 
