@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -35,20 +35,17 @@
 #include <math.h>
 #include "ros/duration.h"
 
-namespace ros
-{
-  void normalizeSecNSecSigned(long &sec, long &nsec)
-  {
+namespace ros {
+
+  void normalizeSecNSecSigned(long &sec, long &nsec) {
     long nsec_part = nsec;
     long sec_part = sec;
-     
-    while (nsec_part > 1000000000L)
-    {
+
+    while (nsec_part > 1000000000L) {
       nsec_part -= 1000000000L;
       ++sec_part;
     }
-    while (nsec_part < 0)
-    {
+    while (nsec_part < 0) {
       nsec_part += 1000000000L;
       --sec_part;
     }
@@ -56,8 +53,7 @@ namespace ros
     nsec = nsec_part;
   }
 
-  Duration& Duration::operator+=(const Duration &rhs)
-  {
+  Duration& Duration::operator+=(const Duration &rhs) {
     sec += rhs.sec;
     nsec += rhs.nsec;
     normalizeSecNSecSigned(sec, nsec);
@@ -78,4 +74,4 @@ namespace ros
     return *this;
   }
 
-}
+}  // namespace ros

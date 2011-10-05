@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -37,11 +37,9 @@
 
 #include "node_output.h"
 
-namespace ros{
+namespace ros {
 
-  /* Generic Publisher */
-  class Publisher
-  {
+  class Publisher {
     public:
       Publisher( const char * topic_name, Msg * msg ): topic_(topic_name), msg_(msg){};
       int publish( Msg * msg ){
@@ -52,11 +50,12 @@ namespace ros{
 
       Msg *msg_;
       int id_;
+
+      // TODO(damonkohler): Rename
       NodeOutput_* no_;
 
   };
 
-}
-
+}  // namespace ros
 
 #endif

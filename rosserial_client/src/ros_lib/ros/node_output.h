@@ -32,8 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ROS_NODEOUTPUT_H_
-#define ROS_NODEOUTPUT_H_
+#ifndef ROS_NODE_OUTPUT_H_
+#define ROS_NODE_OUTPUT_H_
 
 #include "msg.h"
 
@@ -59,7 +59,7 @@ namespace ros {
         configured_ = false;
       }
 
-      void setConfigured(bool configured){
+      void setConfigured(bool configured) {
         configured_ = configured;
       }
 
@@ -111,6 +111,6 @@ namespace ros {
       unsigned char message_out[BUFFER_SIZE];
   };
 
-}
+}  // namespace ros
 
 #endif
