@@ -23,11 +23,11 @@ string(REGEX REPLACE "\n" ";" ${PROJECT_NAME}_depedencies ${${PROJECT_NAME}_depe
 
 foreach(MSG_PKG ${${PROJECT_NAME}_depedencies})
         rosbuild_find_ros_package(${MSG_PKG})
-	if (EXISTS ${${MSG_PKG}_PACKAGE_PATH}/msg AND
-		NOT EXISTS ${PROJECT_SOURCE_DIR}/msg_gen/${MSG_PKG})
-		message(STATUS "Generating rosserial implementation for ${MSG_PKG} in ${PROJECT_SOURCE_DIR}/src" )
-		execute_process(COMMAND rosrun rosserial_client make_library.py ${PROJECT_SOURCE_DIR}/msg_gen ${MSG_PKG} OUTPUT_QUIET)
-	endif()
+  if (EXISTS ${${MSG_PKG}_PACKAGE_PATH}/msg AND
+    NOT EXISTS ${PROJECT_SOURCE_DIR}/msg_gen/${MSG_PKG})
+    message(STATUS "Generating rosserial implementation for ${MSG_PKG} in ${PROJECT_SOURCE_DIR}/src" )
+    execute_process(COMMAND rosrun rosserial_client make_library.py ${PROJECT_SOURCE_DIR}/msg_gen ${MSG_PKG} OUTPUT_QUIET)
+  endif()
 endforeach(MSG_PKG)
 FILE(GLOB_RECURSE ROS_MSG_GEN ${PROJECT_SOURCE_DIR}/msg_gen/*)
 include_directories(${PROJECT_SOURCE_DIR}/msg_gen)
@@ -58,11 +58,11 @@ include_directories(${PROJECT_SOURCE_DIR}/msg_gen)
 #       generate_ros_firmware(test)
 
 macro(generate_ros_firmware TARGET_NAME)
-	set(${TARGET_NAME}_SRCS
+  set(${TARGET_NAME}_SRCS
             ${${TARGET_NAME}_SRCS}
             ${rosserial_arduino_PACKAGE_PATH}/cmake_scripts/cc_support.cpp
             ${ROS_CLIENT_SRCS}
             ${ROS_ARDUINO_SRCS}
             ${ROS_MSG_GEN})
-	generate_arduino_firmware(${TARGET_NAME})
+  generate_arduino_firmware(${TARGET_NAME})
 endmacro()
