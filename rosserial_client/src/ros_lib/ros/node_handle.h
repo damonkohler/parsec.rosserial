@@ -42,7 +42,7 @@
 
 #define SYNC_SECONDS 5
 
-#define MSG_TIMEOUT 20  // 20 ms to recieve all of message data
+#define MSG_TIMEOUT 20  // 20 ms to receive all of message data
 
 #include "msg_receiver.h"
 #include "node_output.h"
@@ -99,6 +99,7 @@ namespace ros {
       // Start serial, initialize buffers
       void initNode() {
         hardware_.init();
+        error_count_ = 0;
         total_receivers_ = 0;
         reset();
       }
@@ -111,6 +112,7 @@ namespace ros {
       int data_index_;
       int checksum_;
 
+      int error_count_;
       int total_receivers_;
 
       // used for syncing the time
@@ -149,7 +151,7 @@ namespace ros {
         }
         // Reset state if message has timed out.
         if (state_ != STATE_FIRST_FF && current_time > last_msg_timeout_time) {
-          state_ = STATE_FIRST_FF;
+          reset();
         }
 
         // while available buffer, read data
@@ -160,7 +162,6 @@ namespace ros {
             break;
           }
           checksum_ += inputByte;
-          // TODO(damonkohler): Use switch statement?
           switch (state_) {
             case STATE_FIRST_FF:
               if (inputByte == 0xff) {
@@ -192,12 +193,17 @@ namespace ros {
               break;
             case STATE_SIZE_HIGH:  // top half of message size
               remaining_data_bytes_ += inputByte << 8;
-              state_ = STATE_MESSAGE;
               if (remaining_data_bytes_ == 0) {
                 state_ = STATE_CHECKSUM;
+              } else if (remaining_data_bytes_ <= INPUT_SIZE) {
+                state_ = STATE_MESSAGE;
+              } else {
+                // Protect against buffer overflow.
+                reset();
+                ++error_count_;
               }
               break;
-            case STATE_MESSAGE:  // message data being recieved
+            case STATE_MESSAGE:  // message data being received
               message_in[data_index_++] = inputByte;
               remaining_data_bytes_--;
               if (remaining_data_bytes_ == 0) {  // is message complete? if so, checksum
@@ -215,9 +221,12 @@ namespace ros {
                   syncTime(message_in);
                 } else if (topic_ == TopicInfo::ID_PARAMETER_REQUEST) {
                   req_param_resp.deserialize(message_in);
-                  param_recieved = true;
-                } else if (receivers[topic_-100] != 0) {
-                  receivers[topic_-100]->receive(message_in);
+                  param_received = true;
+                } else if (topic_ >= 100 && topic_ - 100 < MAX_SUBSCRIBERS &&
+                           receivers[topic_ - 100] != 0) {
+                  receivers[topic_ - 100]->receive(message_in);
+                } else {
+                  ++error_count_;
                 }
               }
               reset();
@@ -234,6 +243,10 @@ namespace ros {
           requestSyncTime();
           last_sync_time = current_time;
         }
+      }
+
+      int getErrorCount() {
+        return error_count_;
       }
 
       // Are we connected to the PC?
@@ -304,29 +317,19 @@ namespace ros {
       void negotiateTopics() {
         node_output_.setConfigured(true);
         rosserial_msgs::TopicInfo ti;
-        for (int i = 0; i < MAX_PUBLISHERS; i++) {
-          if (publishers[i] != 0) {  // non-empty slot
-            ti.topic_id = publishers[i]->id_;
-            ti.topic_name = (char*) publishers[i]->topic_;
-            ti.message_type = (char*) publishers[i]->msg_->getType();
-            node_output_.publish(TOPIC_PUBLISHERS, &ti);
-          } else {
-            // Slots are allocated sequentially and contiguously. We can break
-            // out early.
-            break;
-          }
+        // Slots are allocated sequentially and contiguously. We can break
+        // out early.
+        for (int i = 0; i < MAX_PUBLISHERS && publishers[i] != 0; i++) {
+          ti.topic_id = publishers[i]->id_;
+          ti.topic_name = (char*) publishers[i]->topic_;
+          ti.message_type = (char*) publishers[i]->msg_->getType();
+          node_output_.publish(TOPIC_PUBLISHERS, &ti);
         }
-        for (int i = 0; i < MAX_SUBSCRIBERS; i++) {
-          if (receivers[i] != 0) {  // non-empty slot
-            ti.topic_id = receivers[i]->id_;
-            ti.topic_name = (char*) receivers[i]->topic_;
-            ti.message_type = (char*) receivers[i]->getMsgType();
-            node_output_.publish(TOPIC_SUBSCRIBERS, &ti);
-          } else {
-            // Slots are allocated sequentially and contiguously. We can break
-            // out early.
-            break;
-          }
+        for (int i = 0; i < MAX_SUBSCRIBERS && receivers[i] != 0; i++) {
+          ti.topic_id = receivers[i]->id_;
+          ti.topic_name = (char*) receivers[i]->topic_;
+          ti.message_type = (char*) receivers[i]->getMsgType();
+          node_output_.publish(TOPIC_SUBSCRIBERS, &ti);
         }
       }
 
@@ -358,16 +361,16 @@ namespace ros {
 
     // Retrieve Parameters
     private:
-      bool param_recieved;
+      bool param_received;
       rosserial_msgs::RequestParamResponse req_param_resp;
 
-      bool requestParam(const char* name, int time_out =  1000) {
-        param_recieved = false;
+      bool requestParam(const char* name, int time_out=1000) {
+        param_received = false;
         rosserial_msgs::RequestParamRequest req;
         req.name  = (char*)name;
         node_output_.publish(TopicInfo::ID_PARAMETER_REQUEST, &req);
         int end_time = hardware_.time();
-        while(!param_recieved) {
+        while(!param_received) {
           spinOnce();
           if (end_time > hardware_.time()) return false;
         }
@@ -375,38 +378,32 @@ namespace ros {
       }
 
     public:
-      bool getParam(const char* name, int* param, int length =1) {
-        if (requestParam(name)) {
-          if (length == req_param_resp.ints_length) {
-            //copy it over
-            for(int i=0; i<length; i++)
-              param[i] = req_param_resp.ints[i];
-            return true;
+      bool getParam(const char* name, int* param, int length=1) {
+        if (requestParam(name) && length == req_param_resp.ints_length) {
+          for (int i = 0; i < length; i++) {
+            param[i] = req_param_resp.ints[i];
           }
+          return true;
         }
         return false;
       }
 
       bool getParam(const char* name, float* param, int length=1) {
-        if (requestParam(name)) {
-          if (length == req_param_resp.floats_length) {
-            //copy it over
-            for(int i=0; i<length; i++)
-              param[i] = req_param_resp.floats[i];
-            return true;
+        if (requestParam(name) && length == req_param_resp.floats_length) {
+          for (int i = 0; i < length; i++) {
+            param[i] = req_param_resp.floats[i];
           }
+          return true;
         }
         return false;
       }
 
       bool getParam(const char* name, char** param, int length=1) {
-        if (requestParam(name)) {
-          if (length == req_param_resp.strings_length) {
-            //copy it over
-            for(int i=0; i<length; i++)
-              strcpy(param[i],req_param_resp.strings[i]);
-            return true;
+        if (requestParam(name) && length == req_param_resp.strings_length) {
+          for (int i = 0; i < length; i++) {
+            strcpy(param[i], req_param_resp.strings[i]);
           }
+          return true;
         }
         return false;
       }
