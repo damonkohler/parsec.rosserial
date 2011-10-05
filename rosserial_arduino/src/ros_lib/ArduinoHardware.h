@@ -40,8 +40,8 @@
 
 class ArduinoHardware {
   public:
-    ArduinoHardware() : iostream_(&Serial), baud_(57600) {}
-    ArduinoHardware(HardwareSerial* iostream, long baud=57600)
+    ArduinoHardware() : iostream_(&Serial), baud_(115200) {}
+    ArduinoHardware(HardwareSerial* iostream, long baud=115200)
         : iostream_(iostream), baud_(baud) {}
 
     void setBaud(long baud) {

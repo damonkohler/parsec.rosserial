@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -32,15 +32,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ros_h
-#define ros_h
+#ifndef ROS_H
+#define ROS_H
 
 #include "ros/node_handle.h"
 #include "ArduinoHardware.h"
 
-namespace ros
-{
+namespace ros {
+
   typedef NodeHandle_<ArduinoHardware> NodeHandle;
-}
+
+}  // namespace ros
 
 #endif

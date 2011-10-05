@@ -35,35 +35,36 @@
 #ifndef ROS_NODE_HANDLE_H_
 #define ROS_NODE_HANDLE_H_
 
-#include "../std_msgs/Time.h"
-#include "../rosserial_msgs/TopicInfo.h"
-#include "../rosserial_msgs/Log.h"
-#include "../rosserial_msgs/RequestParam.h"
+#include <std_msgs/Time.h>
+#include <rosserial_msgs/TopicInfo.h>
+#include <rosserial_msgs/Log.h>
+#include <rosserial_msgs/RequestParam.h>
 
-#define SYNC_SECONDS        5
-
-#define STATE_FIRST_FF       0
-#define STATE_SECOND_FF      1
-#define STATE_TOPIC_L        2   // waiting for topic id
-#define STATE_TOPIC_H        3
-#define STATE_SIZE_L         4   // waiting for message size
-#define STATE_SIZE_H         5
-#define STATE_MESSAGE        6
-#define STATE_CHECKSUM       7
+#define SYNC_SECONDS 5
 
 #define MSG_TIMEOUT 20  // 20 ms to recieve all of message data
 
-#include "node_output.h"
-
-#include "publisher.h"
 #include "msg_receiver.h"
-#include "subscriber.h"
+#include "node_output.h"
+#include "publisher.h"
 #include "rosserial_ids.h"
 #include "service_server.h"
+#include "subscriber.h"
 
 namespace ros {
 
   using rosserial_msgs::TopicInfo;
+
+  enum PacketState {
+    STATE_FIRST_FF,
+    STATE_SECOND_FF,
+    STATE_TOPIC_LOW,  // Waiting for topic ID.
+    STATE_TOPIC_HIGH,
+    STATE_SIZE_LOW,  // Waiting for message size.
+    STATE_SIZE_HIGH,
+    STATE_MESSAGE,
+    STATE_CHECKSUM,
+  };
 
   // Node Handle
   template<class Hardware,
@@ -104,7 +105,7 @@ namespace ros {
 
     protected:
       // State machine variables for spinOnce
-      int state_;
+      PacketState state_;
       int remaining_data_bytes_;
       int topic_;
       int data_index_;
@@ -129,7 +130,7 @@ namespace ros {
 
       // Reset state
       void reset() {
-        state_ = 0;
+        state_ = STATE_FIRST_FF;
         remaining_data_bytes_ = 0;
         topic_ = 0;
         data_index_ = 0;
@@ -154,63 +155,75 @@ namespace ros {
         // while available buffer, read data
         while (true) {
           int inputByte = hardware_.read();
-          if(inputByte < 0) {
+          if (inputByte < 0) {
             // No data available to read.
             break;
           }
           checksum_ += inputByte;
           // TODO(damonkohler): Use switch statement?
-          if (state_ == STATE_MESSAGE) {  // message data being recieved
-            message_in[data_index_++] = inputByte;
-            remaining_data_bytes_--;
-            if (remaining_data_bytes_ == 0) {  // is message complete? if so, checksum
-              state_ = STATE_CHECKSUM;
-            }
-          } else if (state_ == STATE_FIRST_FF) {
-            if (inputByte == 0xff) {
-              state_++;
-              last_msg_timeout_time = current_time + MSG_TIMEOUT;
-            }
-          } else if (state_ == STATE_SECOND_FF) {
-            if (inputByte == 0xff) {
-              state_++;
-            } else {
-              state_ = STATE_FIRST_FF;
-            }
-          } else if (state_ == STATE_TOPIC_L) {  // bottom half of topic id
-            topic_ = inputByte;
-            state_++;
-            checksum_ = inputByte;  // first byte included in checksum
-          } else if (state_ == STATE_TOPIC_H) {  // top half of topic id
-            topic_ += inputByte << 8;
-            state_++;
-          } else if (state_ == STATE_SIZE_L) {  // bottom half of message size
-            remaining_data_bytes_ = inputByte;
-            data_index_ = 0;
-            state_++;
-          } else if (state_ == STATE_SIZE_H) {  // top half of message size
-            remaining_data_bytes_ += inputByte << 8;
-            state_ = STATE_MESSAGE;
-            if (remaining_data_bytes_ == 0) {
-              state_ = STATE_CHECKSUM;
-            }
-          } else if (state_ == STATE_CHECKSUM) {  // do checksum
-            if ((checksum_ % 256) == 255) {
-              if (topic_ == TOPIC_NEGOTIATION) {
-                requestSyncTime();
-                negotiateTopics();
-                last_sync_time = current_time;
-                last_sync_receive_time = current_time;
-              } else if (topic_ == TopicInfo::ID_TIME) {
-                syncTime(message_in);
-              } else if (topic_ == TopicInfo::ID_PARAMETER_REQUEST) {
-                req_param_resp.deserialize(message_in);
-                param_recieved = true;
-              } else if (receivers[topic_-100] != 0) {
-                receivers[topic_-100]->receive(message_in);
+          switch (state_) {
+            case STATE_FIRST_FF:
+              if (inputByte == 0xff) {
+                state_ = STATE_SECOND_FF;
+                last_msg_timeout_time = current_time + MSG_TIMEOUT;
+              } else {
+                reset();
               }
-            }
-            state_ = STATE_FIRST_FF;
+              break;
+            case STATE_SECOND_FF:
+              if (inputByte == 0xff) {
+                state_ = STATE_TOPIC_LOW;
+              } else {
+                reset();
+              }
+              break;
+            case STATE_TOPIC_LOW:
+              topic_ = inputByte;
+              checksum_ = inputByte;  // This is the first byte to be included in the checksum.
+              state_ = STATE_TOPIC_HIGH;
+              break;
+            case STATE_TOPIC_HIGH:
+              topic_ += inputByte << 8;
+              state_ = STATE_SIZE_LOW;
+              break;
+            case STATE_SIZE_LOW:
+              remaining_data_bytes_ = inputByte;
+              state_ = STATE_SIZE_HIGH;
+              break;
+            case STATE_SIZE_HIGH:  // top half of message size
+              remaining_data_bytes_ += inputByte << 8;
+              state_ = STATE_MESSAGE;
+              if (remaining_data_bytes_ == 0) {
+                state_ = STATE_CHECKSUM;
+              }
+              break;
+            case STATE_MESSAGE:  // message data being recieved
+              message_in[data_index_++] = inputByte;
+              remaining_data_bytes_--;
+              if (remaining_data_bytes_ == 0) {  // is message complete? if so, checksum
+                state_ = STATE_CHECKSUM;
+              }
+              break;
+            case STATE_CHECKSUM:  // do checksum
+              if ((checksum_ % 256) == 255) {
+                if (topic_ == TOPIC_NEGOTIATION) {
+                  requestSyncTime();
+                  negotiateTopics();
+                  last_sync_time = current_time;
+                  last_sync_receive_time = current_time;
+                } else if (topic_ == TopicInfo::ID_TIME) {
+                  syncTime(message_in);
+                } else if (topic_ == TopicInfo::ID_PARAMETER_REQUEST) {
+                  req_param_resp.deserialize(message_in);
+                  param_recieved = true;
+                } else if (receivers[topic_-100] != 0) {
+                  receivers[topic_-100]->receive(message_in);
+                }
+              }
+              reset();
+              break;
+            default:;
+              // TODO(damonkohler): Crash?
           }
         }
 
@@ -241,7 +254,7 @@ namespace ros {
         time.deserialize(data);
         time.data.sec += offset / 1000;
         time.data.nsec += (offset % 1000) * 1000000UL;
-        this->setNow(time.data);
+        setNow(time.data);
         last_sync_receive_time = hardware_.time();
       }
 
@@ -269,7 +282,7 @@ namespace ros {
           if (publishers[i] == 0) {  // empty slot
             publishers[i] = &publisher;
             publisher.id_ = i + 100 + MAX_SUBSCRIBERS;
-            publisher.node_output_ = &this->node_output_;
+            publisher.no_ = &node_output_;
             return true;
           }
         }
@@ -313,6 +326,7 @@ namespace ros {
             // Slots are allocated sequentially and contiguously. We can break
             // out early.
             break;
+          }
         }
       }
 
@@ -372,6 +386,7 @@ namespace ros {
         }
         return false;
       }
+
       bool getParam(const char* name, float* param, int length=1) {
         if (requestParam(name)) {
           if (length == req_param_resp.floats_length) {
@@ -383,6 +398,7 @@ namespace ros {
         }
         return false;
       }
+
       bool getParam(const char* name, char** param, int length=1) {
         if (requestParam(name)) {
           if (length == req_param_resp.strings_length) {
@@ -396,6 +412,6 @@ namespace ros {
       }
   };
 
-}
+}  // namespace ros
 
 #endif

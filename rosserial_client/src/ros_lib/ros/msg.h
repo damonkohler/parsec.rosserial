@@ -36,6 +36,7 @@
 #define ROS_MSG_H_
 
 namespace ros {
+
   // Message base class
   class Msg {
     public:
@@ -43,6 +44,7 @@ namespace ros {
       virtual int deserialize(unsigned char* data) = 0;
       virtual const char* getType() = 0;
   };
-}
+
+}  // namespace ros
 
 #endif

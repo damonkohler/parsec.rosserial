@@ -36,9 +36,9 @@
 __author__ = "mferguson@willowgarage.com (Michael Ferguson)"
 
 __usage__ = """
-make_library.py generates the Arduino rosserial library files.  It 
-requires the location of your arduino libraries folder and the name of 
-one or more packages for which you want to make libraries.  
+make_library.py generates the Arduino rosserial library files.  It
+requires the location of your arduino libraries folder and the name of
+one or more packages for which you want to make libraries.
 
 rosrun rosserial_client make_library.py <library_path>  pkg_name [pkg2 pkg3 ...]
 """
@@ -75,17 +75,17 @@ def type_to_var(ty):
 
 class EnumerationType:
     """ For data values. """
-    
+
     def __init__(self, name, ty, value):
         self.name = name
         self.type = ty
         self.value = value
-    
+
     def make_declaration(self, f):
-        f.write('      enum { %s = %s };\n' % (self.name, str(self.value)))    
+        f.write('      enum { %s = %s };\n' % (self.name, str(self.value)))
 
 class PrimitiveDataType:
-    """ Our datatype is a C/C++ primitive. """    
+    """ Our datatype is a C/C++ primitive. """
 
     def __init__(self, name, ty, bytes):
         self.name = name
@@ -131,10 +131,10 @@ class MessageDataType(PrimitiveDataType):
 
 class Float64DataType(PrimitiveDataType):
     """ AVR C/C++ has no native 64-bit support, we automatically convert to 32-bit float. """
-        
+
     def make_declaration(self, f):
         f.write('      float %s;\n' % self.name )
-    
+
     def serialize(self, f):
         cn = self.name.replace("[","").replace("]","")
         f.write('      long * val_%s = (long *) &(this->%s);\n' % (cn,self.name))
@@ -172,7 +172,7 @@ class Int64DataType(PrimitiveDataType):
 
     def make_declaration(self, f):
         f.write('      long %s;\n' % self.name )
-    
+
     def serialize(self, f):
         for i in range(4):
             f.write('      *(outbuffer + offset++) = (%s >> (8 * %d)) & 0xFF;\n' % (self.name, i) )
@@ -185,7 +185,7 @@ class Int64DataType(PrimitiveDataType):
             f.write('      %s += ((long)(*(inbuffer + offset++))) >> (8 * %d);\n' % (self.name, i))
         f.write('      offset += 4;\n')
 
-    
+
 class StringDataType(PrimitiveDataType):
     """ Need to convert to signed char *. """
 
@@ -236,10 +236,10 @@ class ArrayDataType(PrimitiveDataType):
 
     def __init__(self, name, ty, bytes, cls, array_size=None):
         self.name = name
-        self.type = ty  
+        self.type = ty
         self.bytes = bytes
         self.size = array_size
-        self.cls = cls 
+        self.cls = cls
 
     def make_declaration(self, f):
         c = self.cls("*"+self.name, self.type, self.bytes)
@@ -249,7 +249,7 @@ class ArrayDataType(PrimitiveDataType):
             f.write('      %s * %s;\n' % (self.type, self.name))
         else:
             f.write('      %s %s[%d];\n' % (self.type, self.name, self.size))
-    
+
     def serialize(self, f):
         c = self.cls(self.name+"[i]", self.type, self.bytes)
         if self.size == None:
@@ -262,11 +262,11 @@ class ArrayDataType(PrimitiveDataType):
             c.serialize(f)
             f.write('      }\n')
         else:
-            f.write('      unsigned char * %s_val = (unsigned char *) this->%s;\n' % (self.name, self.name))    
+            f.write('      unsigned char * %s_val = (unsigned char *) this->%s;\n' % (self.name, self.name))
             f.write('      for( unsigned char i = 0; i < %d; i++){\n' % (self.size) )
-            c.serialize(f)            
+            c.serialize(f)
             f.write('      }\n')
-        
+
     def deserialize(self, f):
         if self.size == None:
             c = self.cls("st_"+self.name, self.type, self.bytes)
@@ -279,20 +279,20 @@ class ArrayDataType(PrimitiveDataType):
             # copy to array
             f.write('      for( unsigned char i = 0; i < %s_length; i++){\n' % (self.name) )
             c.deserialize(f)
-            f.write('        memcpy( &(this->%s[i]), &(this->st_%s), sizeof(%s));\n' % (self.name, self.name, self.type))                     
+            f.write('        memcpy( &(this->%s[i]), &(this->st_%s), sizeof(%s));\n' % (self.name, self.name, self.type))
             f.write('      }\n')
         else:
             c = self.cls(self.name+"[i]", self.type, self.bytes)
-            f.write('      unsigned char * %s_val = (unsigned char *) this->%s;\n' % (self.name, self.name))    
+            f.write('      unsigned char * %s_val = (unsigned char *) this->%s;\n' % (self.name, self.name))
             f.write('      for( unsigned char i = 0; i < %d; i++){\n' % (self.size) )
-            c.deserialize(f)            
+            c.deserialize(f)
             f.write('      }\n')
 
 
 #####################################################################
 # Messages
 
-class Message:    
+class Message:
     """ Parses message definitions into something we can export. """
 
     def __init__(self, name, package, definition):
@@ -307,15 +307,15 @@ class Message:
         # parse definition
         for line in definition:
             # prep work
-            line = line.strip().rstrip()    
+            line = line.strip().rstrip()
             value = None
             if line.find("#") > -1:
                 line = line[0:line.find("#")]
             if line.find("=") > -1:
                 value = int(line[line.find("=")+1:])
                 line = line[0:line.find("=")]
-            
-            # find package/class name   
+
+            # find package/class name
             line = line.replace("\t", " ")
             l = line.split(" ")
             while "" in l:
@@ -324,7 +324,7 @@ class Message:
                 continue
             ty, name = l[0:2]
             if value != None:
-                self.enums.append( EnumerationType(name, ty, value))            
+                self.enums.append( EnumerationType(name, ty, value))
                 continue
 
             try:
@@ -334,7 +334,7 @@ class Message:
                 type_name = ty
             type_array = False
             if type_name.find('[') > 0:
-                type_array = True   
+                type_array = True
                 try:
                     type_array_size = int(type_name[type_name.find('[')+1:type_name.find(']')])
                 except:
@@ -348,9 +348,9 @@ class Message:
                 code_type = type_name
                 size = 0
                 if type_package:
-                    cls = MessageDataType                    
+                    cls = MessageDataType
                 if type_name == 'float64':
-                    cls = Float64DataType   
+                    cls = Float64DataType
                     code_type = 'float'
                 elif type_name == 'time':
                     cls = TimeDataType
@@ -382,7 +382,7 @@ class Message:
                         self.includes.append("std_msgs/Header")
                 else:
                     if type_package == None or type_package == package:
-                        type_package = package  
+                        type_package = package
                         cls = MessageDataType
                         if self.package+"/"+type_name not in self.includes:
                             self.includes.append(self.package+"/"+type_name)
@@ -396,7 +396,7 @@ class Message:
 
 
     def _write_serializer(self, f):
-                # serializer   
+                # serializer
         f.write('\n')
         f.write('    virtual int serialize(unsigned char *outbuffer)\n')
         f.write('    {\n')
@@ -406,7 +406,7 @@ class Message:
         f.write('      return offset;\n');
         f.write('    }\n')
         f.write('\n')
-        
+
     def _write_deserializer(self, f):
         # deserializer
         f.write('    virtual int deserialize(unsigned char *inbuffer)\n')
@@ -415,24 +415,24 @@ class Message:
         for d in self.data:
             d.deserialize(f)
         f.write('     return offset;\n');
-        f.write('    }\n')         
+        f.write('    }\n')
         f.write('\n')
     def _write_std_includes(self, f):
         f.write('#include <stdint.h>\n')
         f.write('#include <string.h>\n')
-        f.write('#include <stdlib.h>\n')
-        f.write('#include "../ros/msg.h"\n')
+        f.write('#include <stdlib.h>\n\n')
+        f.write('#include "ros/msg.h"\n')
 
     def _write_msg_includes(self,f):
         for i in self.includes:
             f.write('#include "%s.h"\n' % i)
-            
+
     def _write_data(self, f):
         for d in self.data:
             d.make_declaration(f)
         for e in self.enums:
             e.make_declaration(f)
-            
+
     def _write_getType(self, f):
         f.write('    const char * getType(){ return "%s/%s"; };\n'%(self.package, self.name))
 
@@ -446,14 +446,14 @@ class Message:
         self._write_getType(f)
         f.write('\n')
         f.write('  };\n')
-        
+
     def make_header(self, f):
         f.write('#ifndef ros_%s_%s_h\n'%(self.package, self.name))
         f.write('#define ros_%s_%s_h\n'%(self.package, self.name))
         f.write('\n')
         self._write_std_includes(f)
         self._write_msg_includes(f)
-       
+
         f.write('\n')
         f.write('namespace %s\n' % self.package)
         f.write('{\n')
@@ -466,15 +466,15 @@ class Message:
 
 class Service:
     def __init__(self, name, package, definition):
-        """ 
+        """
         @param name -  name of service
         @param package - name of service package
         @param definition - list of lines of  definition
         """
-        
+
         self.name = name
         self.package = package
-        
+
         sep_line = None
         sep = re.compile('---*')
         for i in range(0, len(definition)):
@@ -483,33 +483,33 @@ class Service:
                 break
         self.req_def = definition[0:sep_line]
         self.resp_def = definition[sep_line+1:]
-        
+
         self.req = Message(name+"Request", package, self.req_def)
         self.resp = Message(name+"Response", package, self.resp_def)
-        
+
     def make_header(self, f):
         f.write('#ifndef ros_SERVICE_%s_h\n' % self.name)
         f.write('#define ros_SERVICE_%s_h\n' % self.name)
-        
+
         self.req._write_std_includes(f)
         includes = self.req.includes
         includes.extend(self.resp.includes)
         includes = list(set(includes))
         for inc in includes:
             f.write('#include "%s.h"\n' % inc)
-            
+
         f.write('\n')
         f.write('namespace %s\n' % self.package)
         f.write('{\n')
-        f.write('\n')       
+        f.write('\n')
         f.write('static const char %s[] = "%s/%s";\n'%(self.name.upper(), self.package, self.name))
-        
+
         def write_type(out, name):
             out.write('    const char * getType(){ return %s; };\n'%(name))
         _write_getType = lambda out: write_type(out, self.name.upper())
         self.req._write_getType = _write_getType
         self.resp._write_getType = _write_getType
-        
+
         f.write('\n')
         self.req._write_impl(f)
         f.write('\n')
@@ -518,9 +518,9 @@ class Service:
         f.write('}\n')
 
         f.write('#endif')
-        
-   
-        
+
+
+
 #####################################################################
 # Core Library Maker
 
@@ -530,10 +530,10 @@ class ArduinoLibraryMaker:
     def __init__(self, package):
         """ Initialize by finding location and all messages in this package. """
         self.name = package
-        print "\nExporting " + package +"\n", 
+        print "\nExporting " + package +"\n",
 
         self.pkg_dir = roslib.packages.get_pkg_dir(package)
-        
+
         sys.stdout.write('Messages:\n    ')
         # find the messages in this package
         self.messages = list()
@@ -545,7 +545,7 @@ class ArduinoLibraryMaker:
 					definition = open(self.pkg_dir + "/msg/" + f).readlines()
 					self.messages.append( Message(f[0:-4], self.name, definition) )
 			print "\n"
-     
+
         sys.stdout.write('Services:\n    ')
         # find the services in this package
         self.services = list()
@@ -569,19 +569,18 @@ class ArduinoLibraryMaker:
             msg.make_header(header)
             header.close()
 
-    
+
 if __name__=="__main__":
 
     # get path to arduino sketchbook
-    
+
     if (len(sys.argv) <3):
         print __usage__
         exit()
-    
+
     path = sys.argv[1]
     if path[-1] == "/":
         path = path[0:-1]
-    path += "/ros_lib"
     print "\nExporting to %s" % path
 
     # make libraries
