@@ -41,19 +41,39 @@ namespace ros {
 
   class Publisher {
     public:
-      Publisher( const char * topic_name, Msg * msg ): topic_(topic_name), msg_(msg){};
-      int publish( Msg * msg ){
-    	  return no_->publish(id_, msg_);
-      };
+      Publisher(const char* topic_name, Msg* msg)
+          : topic_name_(topic_name), msg_(msg), id_(0), node_output_(NULL) {}
 
-      const char * topic_;
+      virtual ~Publisher() {}
 
-      Msg *msg_;
+      int publish(Msg* msg){
+        return node_output_->publish(id_, msg_);
+      }
+
+      void setId(int id) { id_ = id; }
+
+      int getId() { return id_; }
+
+      void setNodeOutput(NodeOutput_* node_output) {
+        node_output_ = node_output;
+      }
+
+      const char* getTopicName() {
+        return topic_name_;
+      }
+
+      const char* getMessageType() {
+        return msg_->getType();
+      }
+
+    private:
+      const char* topic_name_;
+      Msg* msg_;
       int id_;
+      NodeOutput_* node_output_;
 
-      // TODO(damonkohler): Rename
-      NodeOutput_* no_;
-
+      Publisher(const Publisher&);
+      void operator=(const Publisher&);
   };
 
 }  // namespace ros

@@ -125,7 +125,7 @@ namespace ros {
           return false;
         }
         receivers[total_receivers_] = receiver;
-        receiver->id_ = 100 + total_receivers_;
+        receiver->setId(100 + total_receivers_);
         total_receivers_++;
         return true;
       }
@@ -294,8 +294,8 @@ namespace ros {
         for (int i = 0; i < MAX_PUBLISHERS; i++) {
           if (publishers[i] == 0) {  // empty slot
             publishers[i] = &publisher;
-            publisher.id_ = i + 100 + MAX_SUBSCRIBERS;
-            publisher.no_ = &node_output_;
+            publisher.setId(i + 100 + MAX_SUBSCRIBERS);
+            publisher.setNodeOutput(&node_output_);
             return true;
           }
         }
@@ -316,20 +316,20 @@ namespace ros {
 
       void negotiateTopics() {
         node_output_.setConfigured(true);
-        rosserial_msgs::TopicInfo ti;
+        rosserial_msgs::TopicInfo topic_info;
         // Slots are allocated sequentially and contiguously. We can break
         // out early.
         for (int i = 0; i < MAX_PUBLISHERS && publishers[i] != 0; i++) {
-          ti.topic_id = publishers[i]->id_;
-          ti.topic_name = (char*) publishers[i]->topic_;
-          ti.message_type = (char*) publishers[i]->msg_->getType();
-          node_output_.publish(TOPIC_PUBLISHERS, &ti);
+          topic_info.topic_id = publishers[i]->getId();
+          topic_info.topic_name = const_cast<char*>(publishers[i]->getTopicName());
+          topic_info.message_type = const_cast<char*>(publishers[i]->getMessageType());
+          node_output_.publish(TOPIC_PUBLISHERS, &topic_info);
         }
         for (int i = 0; i < MAX_SUBSCRIBERS && receivers[i] != 0; i++) {
-          ti.topic_id = receivers[i]->id_;
-          ti.topic_name = (char*) receivers[i]->topic_;
-          ti.message_type = (char*) receivers[i]->getMsgType();
-          node_output_.publish(TOPIC_SUBSCRIBERS, &ti);
+          topic_info.topic_id = receivers[i]->getId();
+          topic_info.topic_name = const_cast<char*>(receivers[i]->getTopicName());
+          topic_info.message_type = const_cast<char*>(receivers[i]->getMessageType());
+          node_output_.publish(TOPIC_SUBSCRIBERS, &topic_info);
         }
       }
 
@@ -337,8 +337,8 @@ namespace ros {
     private:
       void log(char byte, const char* msg) {
         rosserial_msgs::Log l;
-        l.level= byte;
-        l.msg = (char*)msg;
+        l.level = byte;
+        l.msg = const_cast<char*>(msg);
         this->node_output_.publish(rosserial_msgs::TopicInfo::ID_LOG, &l);
       }
 

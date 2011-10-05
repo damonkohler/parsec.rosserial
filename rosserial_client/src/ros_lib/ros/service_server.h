@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -9,14 +9,14 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *  notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
- *    disclaimer in the documentation and/or other materials provided
- *    with the distribution.
+ *  copyright notice, this list of conditions and the following
+ *  disclaimer in the documentation and/or other materials provided
+ *  with the distribution.
  *  * Neither the name of Willow Garage, Inc. nor the names of its
- *    contributors may be used to endorse or promote prducts derived
- *    from this software without specific prior written permission.
+ *  contributors may be used to endorse or promote prducts derived
+ *  from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -39,43 +39,39 @@
 
 namespace ros {
 
-  template<typename SrvRequest , typename SrvResponse>
-  class ServiceServer : MsgReceiver{
+  template<typename SrvRequest, typename SrvResponse>
+  class ServiceServer : MsgReceiver {
     public:
-      typedef void(*CallbackT)(const SrvRequest&,  SrvResponse&);
+      typedef void(*CallbackT)(const SrvRequest&, SrvResponse&);
 
-      ServiceServer(const char* topic_name, CallbackT cb){
-        this->topic_ = topic_name;
-        this->cb_ = cb;
+      ServiceServer(const char* topic_name, CallbackT callback) {
+        topic_name_ = topic_name;
+        callback_ = callback;
       }
 
-      ServiceServer(ServiceServer& srv){
-        this->topic_ = srv.topic_;
-        this->cb_ = srv.cb_;
-      }
+      virtual ~ServiceServer() {}
 
-      virtual void receive(unsigned char * data){
+      virtual void receive(unsigned char* data) {
         req.deserialize(data);
-        this->cb_(req, resp);
-        no_->publish(id_, &resp);
+        callback_(req, resp);
+        node_ouput_->publish(id_, &resp);
       }
 
-      virtual int _getType(){
-        return 3;
-      }
-     
-      virtual const char * getMsgType(){
+      virtual const char* getMessageType() {
         return req.getType();
       }
 
       SrvRequest req;
       SrvResponse resp;
-      NodeOutput_ * no_;
 
     private:
-      CallbackT cb_;
+      CallbackT callback_;
+      NodeOutput_* node_ouput_;
+
+      ServiceServer(const ServiceServer&);
+      void operator=(const ServiceServer&);
   };
 
-}
+}  // namespace ros
 
 #endif

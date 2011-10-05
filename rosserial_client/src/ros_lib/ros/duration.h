@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -39,14 +39,12 @@ namespace ros {
 
   void normalizeSecNSecSigned(long& sec, long& nsec);
 
-  class Duration
-  {
+  class Duration {
     public:
-      long sec, nsec; 
-      
+      long sec, nsec;
+
       Duration() : sec(0), nsec(0) {}
-      Duration(long _sec, long _nsec) : sec(_sec), nsec(_nsec)
-      {
+      Duration(long _sec, long _nsec) : sec(_sec), nsec(_nsec) {
         normalizeSecNSecSigned(sec, nsec);
       }
 
@@ -55,7 +53,7 @@ namespace ros {
       Duration& operator*=(double scale);
   };
 
-}
+}  // namespace ros
 
 #endif
 

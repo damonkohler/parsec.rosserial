@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -41,33 +41,39 @@
 namespace ros {
 
   /* ROS Subscriber
-   * This class handles holding the msg so that
+   * This class handles holding the message_ so that
    * it is not continously reallocated.  It is also used by the
    * node handle to keep track of callback functions and IDs.
    */
-  template<typename MsgT>
-  class Subscriber: public MsgReceiver{
+  template<typename MsgType>
+  class Subscriber : MsgReceiver {
     public:
-      typedef void(*CallbackT)(const MsgT&);
-      MsgT msg;
+      typedef void(*CallbackT)(const MsgType&);
 
-      Subscriber(const char * topic_name, CallbackT msgCB){
-        topic_ = topic_name;
-        cb_= msgCB;
+      Subscriber(const char* topic_name, CallbackT callback) {
+        topic_name_ = topic_name;
+        callback_ = callback;
       }
 
-      virtual void receive(unsigned char* data){
-        msg.deserialize(data);
-        this->cb_(msg);
+      virtual ~Subscriber() {}
+
+      virtual void receive(unsigned char* data) {
+        message_.deserialize(data);
+        callback_(message_);
       }
 
-      virtual const char * getMsgType(){return this->msg.getType();}
-      virtual int _getType(){return TOPIC_SUBSCRIBERS;}
+      virtual const char* getMessageType() {
+        return message_.getType();
+      }
 
     private:
-      CallbackT cb_;
+      MsgType message_;
+      CallbackT callback_;
+
+      Subscriber(const Subscriber&);
+      void operator=(const Subscriber&);
   };
 
-}
+}  // namespace ros
 
 #endif
