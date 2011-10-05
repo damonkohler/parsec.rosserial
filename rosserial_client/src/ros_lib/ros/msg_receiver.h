@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -37,19 +37,29 @@
 
 namespace ros {
 
-  /* Base class for objects recieving messages (Services and Subscribers) */
-  class MsgReceiver
-  {
+  // Base class for objects recieving messages (Services and Subscribers).
+  class MsgReceiver {
     public:
-      virtual void receive(unsigned char *data)=0;
+      MsgReceiver() : id_(0), topic_name_(NULL) {}
+      virtual ~MsgReceiver() {}
 
-      //Distinguishes between different receiver types
-      virtual int _getType()=0;
-      virtual const char * getMsgType()=0;
+      virtual void receive(unsigned char* data) = 0;
+      virtual const char* getMessageType() = 0;
+
+      void setId(int id) { id_ = id; }
+      int getId() { return id_; }
+
+      const char* getTopicName() { return topic_name_; }
+
+    protected:
       int id_;
-      const char * topic_;
+      const char* topic_name_;
+
+    private:
+      MsgReceiver(const MsgReceiver&);
+      void operator=(const MsgReceiver&);
   };
 
-}
+}  // namespace ros
 
 #endif
