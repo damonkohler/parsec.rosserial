@@ -48,16 +48,10 @@ namespace ros {
       virtual int publish(int id, Msg* msg) = 0;
   };
 
-  template<class Hardware, int BUFFER_SIZE=512>
+  template<class Hardware, int BUFFER_SIZE>
   class NodeOutput : public NodeOutput_ {
     public:
-      NodeOutput() : hardware_(NULL), configured_(false) {}
-      NodeOutput(Hardware* hardware) : hardware_(hardware), configured_(false) {}
-
-      void setHardware(Hardware* hardware) {
-        hardware_ = hardware;
-        configured_ = false;
-      }
+      NodeOutput(Hardware* hardware) : hardware_(hardware) {}
 
       void setConfigured(bool configured) {
         configured_ = configured;
@@ -75,7 +69,7 @@ namespace ros {
         // TODO(damonkohler): The serialization should check that we don't
         // overflow our buffer.
         int length = msg->serialize(message_out + 6);
-        if (length > BUFFER_SIZE) {
+        if (length + 7 > BUFFER_SIZE) {
           // It would be better to crash horribly. That will probably happen anyway though...
           return 0;
         }
@@ -96,8 +90,8 @@ namespace ros {
         for (int i = 2; i < length + 6; i++) {
           chk += message_out[i];
         }
-        length += 6;
-        message_out[length++] = 255 - (chk % 256);
+        length += 6;  // Include the header length.
+        message_out[length++] = 255 - (chk % 256);  // Add checksum byte and increase length.
         hardware_->write(message_out, length);
         return length;
       }
