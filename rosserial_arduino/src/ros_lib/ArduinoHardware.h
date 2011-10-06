@@ -40,15 +40,14 @@
 
 class ArduinoHardware {
   public:
-    ArduinoHardware() : iostream_(&Serial), baud_(115200) {}
-    ArduinoHardware(HardwareSerial* iostream, long baud=115200)
+    ArduinoHardware(HardwareSerial* iostream=&Serial, long baud=115200)
         : iostream_(iostream), baud_(baud) {}
 
     void setBaud(long baud) {
-      this->baud_= baud;
+      baud_ = baud;
     }
 
-    int getBaud() {
+    int getBaud() const {
       return baud_;
     }
 
@@ -64,7 +63,7 @@ class ArduinoHardware {
       iostream_->write(data, length);
     }
 
-    unsigned long time() {
+    unsigned long time() const {
       return millis();
     }
 

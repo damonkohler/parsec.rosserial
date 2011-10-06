@@ -245,7 +245,7 @@ namespace ros {
         }
       }
 
-      int getErrorCount() {
+      int getErrorCount() const {
         return error_count_;
       }
 
@@ -272,7 +272,7 @@ namespace ros {
         last_sync_receive_time = hardware_.time();
       }
 
-      Time now() {
+      Time now() const {
         unsigned long ms = hardware_.time();
         Time current_time;
         current_time.sec = ms / 1000 + sec_offset;
