@@ -1,4 +1,4 @@
-/* 
+/*
  * Software License Agreement (BSD License)
  *
  * Copyright (c) 2011, Willow Garage, Inc.
@@ -35,26 +35,29 @@
 #ifndef ROS_TIME_H_
 #define ROS_TIME_H_
 
-#include <ros/duration.h>
 #include <math.h>
 
-namespace ros
-{
+#include "ros/duration.h"
+
+namespace ros {
+
   void normalizeSecNSec(unsigned long &sec, unsigned long &nsec);
 
-  class Time
-  {
+  class Time {
     public:
       unsigned long sec, nsec;
 
       Time() : sec(0), nsec(0) {}
-      Time(unsigned long _sec, unsigned long _nsec) : sec(_sec), nsec(_nsec)
-      {
-        normalizeSecNSec(sec, nsec);  
-      } 
-        
+      Time(unsigned long _sec, unsigned long _nsec) : sec(_sec), nsec(_nsec) {
+        normalizeSecNSec(sec, nsec);
+      }
+
       double toSec() const { return (double)sec + 1e-9*(double)nsec; };
-      void fromSec(double t) { sec = (unsigned long) floor(t); nsec = (unsigned long) round((t-sec) * 1e9); };
+
+      void fromSec(double t) {
+        sec = (unsigned long) floor(t);
+        nsec = (unsigned long) round((t-sec) * 1e9);
+      };
 
       unsigned long toNsec() { return (unsigned long)sec*1000000000ull + (unsigned long)nsec; };
       Time& fromNSec(long t);
@@ -63,9 +66,9 @@ namespace ros
       Time& operator -=(const Duration &rhs);
 
       static Time now();
-      static void setNow( Time & new_now);
+      static void setNow(Time & new_now);
   };
 
-}
+}  // namespace ros
 
 #endif

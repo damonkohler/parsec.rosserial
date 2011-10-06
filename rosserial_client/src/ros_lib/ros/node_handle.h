@@ -256,6 +256,7 @@ namespace ros {
 
       // Time functions
       void requestSyncTime() {
+        // TODO(damonkohler): Why publish an empty message here?
         std_msgs::Time time;
         node_output_.publish(rosserial_msgs::TopicInfo::ID_TIME, &time);
         remote_time_ = hardware_.time();
@@ -263,10 +264,10 @@ namespace ros {
 
       void syncTime(unsigned char* data) {
         std_msgs::Time time;
-        unsigned long offset = hardware_.time() - remote_time_;
+        unsigned long lag = hardware_.time() - remote_time_;
         time.deserialize(data);
-        time.data.sec += offset / 1000;
-        time.data.nsec += (offset % 1000) * 1000000UL;
+        time.data.sec += lag / 1000;
+        time.data.nsec += (lag % 1000) * 1000000UL;
         setNow(time.data);
         last_sync_receive_time = hardware_.time();
       }

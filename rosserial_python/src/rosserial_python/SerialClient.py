@@ -70,13 +70,13 @@ def load_pkg_module(package):
 
 
 class Publisher:
-    """ 
+    """
         Prototype of a forwarding publisher.
     """
     def __init__(self, topic, message_type):
-        """ Create a new publisher. """ 
+        """ Create a new publisher. """
         self.topic = topic
-        
+
         # find message type
         package, message = message_type.split('/')
         m = load_pkg_module(package)
@@ -84,7 +84,7 @@ class Publisher:
         m2 = getattr(m, 'msg')
         self.message = getattr(m2, message)
         self.publisher = rospy.Publisher(topic, self.message)
-    
+
     def handlePacket(self, data):
         """ """
         m = self.message()
@@ -93,14 +93,14 @@ class Publisher:
 
 
 class Subscriber:
-    """ 
+    """
         Prototype of a forwarding subscriber.
     """
 
     def __init__(self, topic, message_type, parent):
         self.topic = topic
         self.parent = parent
-        
+
         # find message type
         package, message = message_type.split('/')
         m = load_pkg_module(package)
@@ -121,11 +121,11 @@ class ServiceServer:
         self.name = service_name
         self.service_type = service_type
         self.parent = parent
-        
+
         # find message type
         package, message = self.service_type.split('/')
         m = load_pkg_module(package)
-        
+
         srvs = getattr(m, 'srv')
         self.srv_req = getattr(srvs, message+"Request")
         self.srv_resp = getattr(srvs, message+"Response")
@@ -146,7 +146,7 @@ class SerialClient:
         Prototype of rosserial python client to connect to serial bus.
     """
 
-    def __init__(self, port=None, baud=57600, timeout=5.0):
+    def __init__(self, port=None, baud=115200, timeout=5.0):
         """ Initialize node, connect to bus, attempt to negotiate topics. """
         self.mutex = thread.allocate_lock()
 
@@ -162,15 +162,15 @@ class SerialClient:
         else:
             # open a specific port
             self.port = Serial(port, baud, timeout=self.timeout*0.5)
-        
+
         self.port.timeout = 0.01 #edit the port timeout
-        
-        time.sleep(0.1) #allow the driver to get ready 
+
+        time.sleep(0.1) #allow the driver to get ready
                         #(Important for uno)
-        
+
         self.senders = dict() #Publishers/ServiceServers
         self.receivers = dict() #subscribers/serviceclients
-                
+
         rospy.sleep(2.0) # TODO
         self.requestTopics()
 
@@ -187,8 +187,8 @@ class SerialClient:
             if (rospy.Time.now() - self.lastsync).to_sec() > (self.timeout * 3):
                 rospy.logerr("Lost sync with device, restarting...")
                 self.requestTopics()
-                self.lastsync = rospy.Time.now()    
-            
+                self.lastsync = rospy.Time.now()
+
             flag = [0,0]
             flag[0]  = self.port.read(1)
             if (flag[0] != '\xff'):
@@ -202,7 +202,7 @@ class SerialClient:
             if (len(header) != 4):
                 #self.port.flushInput()
                 continue
-            
+
             topic_id, msg_length = struct.unpack("<hh", header)
             msg = self.port.read(msg_length)
             if (len(msg) != msg_length):
@@ -233,19 +233,19 @@ class SerialClient:
                     try:
                         m = TopicInfo()
                         m.deserialize(msg)
-                        self.senders[m.topic_id]=ServiceServer(m.topic_name, m.message_type, self) 
+                        self.senders[m.topic_id]=ServiceServer(m.topic_name, m.message_type, self)
                         rospy.loginfo("Setup ServiceServer on %s [%s]"%(m.topic_name, m.message_type) )
                     except:
                         rospy.logerr("Failed to parse service server")
                 elif topic_id == TopicInfo.ID_SERVICE_CLIENT:
                     pass
-                
+
                 elif topic_id == TopicInfo.ID_PARAMETER_REQUEST:
                     self.handleParameterRequest(msg)
-                
+
                 elif topic_id == TopicInfo.ID_LOG:
                     self.handleLogging(msg)
-                    
+
                 elif topic_id == TopicInfo.ID_TIME:
                     t = Time()
                     t.data = rospy.Time.now()
@@ -265,7 +265,7 @@ class SerialClient:
     def handleParameterRequest(self,data):
         """Handlers the request for parameters from the rosserial_client
             This is only serves a limmited selection of parameter types.
-            It is meant for simple configuration of your hardware. It 
+            It is meant for simple configuration of your hardware. It
             will not send dictionaries or multitype lists.
         """
         req = RequestParamRequest()
@@ -285,7 +285,7 @@ class SerialClient:
         for p in param:
             if t!= type(p):
                 rospy.logerr('All Paramers in the list %s must be of the same type'%req.name)
-                return      
+                return
         if (t == int):
             resp.ints= param
         if (t == float):
@@ -310,7 +310,7 @@ class SerialClient:
             rospy.logerr(m.msg)
         elif(m.level==Log.FATAL):
             rospy.logfatal(m.msg)
-        
+
     def send(self, topic, msg):
         """ Send a message on a particular topic to the device. """
         with self.mutex:

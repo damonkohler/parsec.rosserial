@@ -46,7 +46,7 @@ namespace ros {
 
       virtual ~Publisher() {}
 
-      int publish(Msg* msg){
+      int publish(Msg* msg) {
         return node_output_->publish(id_, msg_);
       }
 
