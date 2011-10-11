@@ -198,7 +198,6 @@ function(GENERATE_ARDUINO_FIRMWARE TARGET_NAME)
 	set(ALL_SRCS ${INPUT_SRCS} ${CORE_SRCS})
 
     #setup_arduino_sketch(SKETCH_SRCS ${INPUT_SKETCHES})
-
     if(INPUT_AUTOLIBS)
         setup_arduino_libraries(ALL_LIBS ${INPUT_BOARD} "${ALL_SRCS}")
     endif()
@@ -396,7 +395,7 @@ endfunction()
 #
 function(setup_arduino_libraries VAR_NAME BOARD_ID SRCS)
     set(LIB_TARGETS)
-    find_arduino_libraries(TARGET_LIBS ${SRCS})
+    find_arduino_libraries(TARGET_LIBS "${SRCS}")
     foreach(TARGET_LIB ${TARGET_LIBS})
         setup_arduino_library(LIB_DEPS ${BOARD_ID} ${TARGET_LIB}) # Create static library instead of returning sources
         list(APPEND LIB_TARGETS ${LIB_DEPS})
