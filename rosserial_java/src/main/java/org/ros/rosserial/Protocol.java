@@ -105,19 +105,6 @@ class Protocol {
 	
 	private Subscriber<org.ros.message.std_msgs.Time> wallClockSubscriber;
 
-	private class WallClockListener implements MessageListener<org.ros.message.std_msgs.Time> {
-		private final Protocol protocol; 
-		
-		public WallClockListener(Protocol protocol) {
-			this.protocol = protocol;
-		}
-		
-		@Override
-		public void onNewMessage(org.ros.message.std_msgs.Time message) {
-			protocol.setTime(message.data);
-		}
-	}
-	
 	public Protocol(final Node node, PacketSender packetSender) {
 		this.node = node;
 		this.packetSender = packetSender;
@@ -126,7 +113,12 @@ class Protocol {
 		messageDeserializers = Maps.newHashMap();
 		timeOffset = new Duration(0);
 		wallClockSubscriber = node.newSubscriber(node.resolveName("wall_clock"), "std_msgs/Time",
-				new WallClockListener(this));
+				new MessageListener<org.ros.message.std_msgs.Time>() {
+                    @Override
+                    public void onNewMessage(org.ros.message.std_msgs.Time message) {
+                        setTime(message.data);
+                    }
+                });
 		node.getLog().info("Subscribed to wall clock");
 
 		watchdogTimer = new WatchdogTimer(SYNC_TIMEOUT, new Runnable() {
