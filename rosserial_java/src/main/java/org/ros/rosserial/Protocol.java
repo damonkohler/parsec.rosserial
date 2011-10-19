@@ -46,7 +46,6 @@ import org.ros.message.Time;
 import org.ros.message.rosserial_msgs.Log;
 import org.ros.message.rosserial_msgs.TopicInfo;
 import org.ros.node.Node;
-import org.ros.node.topic.Subscriber;
 
 /**
  * Protocol handler for rosserial.
@@ -103,8 +102,6 @@ class Protocol {
 	 */
 	private Duration timeOffset;
 	
-	private Subscriber<org.ros.message.std_msgs.Time> wallClockSubscriber;
-
 	public Protocol(final Node node, PacketSender packetSender) {
 		this.node = node;
 		this.packetSender = packetSender;
@@ -112,7 +109,7 @@ class Protocol {
 		topicIds = Maps.newHashMap();
 		messageDeserializers = Maps.newHashMap();
 		timeOffset = new Duration(0);
-		wallClockSubscriber = node.newSubscriber(node.resolveName("wall_clock"), "std_msgs/Time",
+		node.newSubscriber(node.resolveName("wall_clock"), "std_msgs/Time",
 				new MessageListener<org.ros.message.std_msgs.Time>() {
                     @Override
                     public void onNewMessage(org.ros.message.std_msgs.Time message) {
