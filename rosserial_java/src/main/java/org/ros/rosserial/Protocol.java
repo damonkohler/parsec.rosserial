@@ -116,7 +116,6 @@ class Protocol {
                         setTime(message.data);
                     }
                 });
-		node.getLog().info("Subscribed to wall clock");
 
 		watchdogTimer = new WatchdogTimer(SYNC_TIMEOUT, new Runnable() {
 			@Override
@@ -243,6 +242,7 @@ class Protocol {
 			org.ros.message.std_msgs.Time time = new org.ros.message.std_msgs.Time();
 			time.data = node.getCurrentTime().add(timeOffset);
 			packetSender.send(constructMessage(TOPIC_TIME, time));
+			node.getLog().info("Sending time, offset " + timeOffset + " new time " + time.data);
 			watchdogTimer.pulse();
 			break;
 		default:
@@ -303,9 +303,5 @@ class Protocol {
 	 */
 	public void setTime(Time time)	{
 		timeOffset = time.subtract(node.getCurrentTime());
-		org.ros.message.std_msgs.Time time_msg = new org.ros.message.std_msgs.Time();
-		time_msg.data = node.getCurrentTime().add(timeOffset);
-		packetSender.send(constructMessage(TOPIC_TIME, time_msg));
-		node.getLog().info("Sending time, offset " + timeOffset + " new time " + time_msg.data);
 	}
 }
