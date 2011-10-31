@@ -1,0 +1,15 @@
+rosserial_arduino/libraries
+rosserial_arduino/src/rosserial_arduino
+rosserial_msgs/src
+build
+target
+msg_gen
+srv_gen
+dependencies.xml
+ros.properties
+default.properties
+.settings
+.classpath
+.project
+./*.swp
+./*.pyc
