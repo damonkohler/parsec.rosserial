@@ -29,13 +29,13 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 import org.ros.RosCore;
+import org.ros.internal.node.DefaultNodeFactory;
+import org.ros.internal.node.NodeFactory;
 import org.ros.message.MessageListener;
 import org.ros.message.rosserial_msgs.TopicInfo;
-import org.ros.node.DefaultNodeFactory;
 import org.ros.node.DefaultNodeRunner;
 import org.ros.node.Node;
 import org.ros.node.NodeConfiguration;
-import org.ros.node.NodeFactory;
 import org.ros.node.NodeRunner;
 import org.ros.node.topic.Subscriber;
 
@@ -48,13 +48,15 @@ public class IntegrationTest {
 	public void testSubscribeToSerialPublisher() throws IOException,
 			InterruptedException {
 		RosCore core = RosCore.newPrivate();
-		NodeRunner nodeRunner = DefaultNodeRunner.newDefault();
-		nodeRunner.run(core, NodeConfiguration.newPrivate());
+		core.start();
 		core.awaitStart();
 
+		NodeRunner nodeRunner = DefaultNodeRunner.newDefault();
 		NodeFactory nodeFactory = new DefaultNodeFactory();
-		Node node = nodeFactory.newNode("node",
-				NodeConfiguration.newPrivate(core.getUri()));
+		NodeConfiguration nodeConfiguration = NodeConfiguration.newPrivate(core
+				.getUri());
+		nodeConfiguration.setNodeName("node");
+		Node node = nodeFactory.newNode(nodeConfiguration);
 
 		final CountDownLatch latch = new CountDownLatch(1);
 		Subscriber<org.ros.message.std_msgs.String> subscriber = node
@@ -80,7 +82,8 @@ public class IntegrationTest {
 
 		RosSerial rosSerial = new RosSerial(new BufferedInputStream(
 				hostInputStream), hostOutputStream);
-		nodeRunner.run(rosSerial, NodeConfiguration.newPrivate(core.getUri()));
+		nodeConfiguration.setNodeName("rosserial");
+		nodeRunner.run(rosSerial, nodeConfiguration);
 
 		// Topic negotiation request.
 		byte[] expectedTopicNegotiationBuffer = new byte[] { (byte) 0xFF,

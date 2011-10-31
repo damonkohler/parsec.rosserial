@@ -42,9 +42,7 @@ import java.nio.BufferOverflowException;
 import com.google.common.base.Preconditions;
 
 import org.ros.exception.RosRuntimeException;
-import org.ros.node.DefaultNodeFactory;
 import org.ros.node.Node;
-import org.ros.node.NodeConfiguration;
 import org.ros.node.NodeMain;
 
 /**
@@ -91,10 +89,9 @@ public class RosSerial implements NodeMain {
 	}
 
 	@Override
-	public void main(NodeConfiguration nodeConfiguration) {
-		Preconditions.checkState(node == null);
-		DefaultNodeFactory nodeFactory = new DefaultNodeFactory();
-		node = nodeFactory.newNode("rosserial_node", nodeConfiguration);
+	public void main(Node node) {
+		Preconditions.checkState(this.node == null);
+		this.node = node;
 		PacketSender packetSender = new DefaultPacketSender(outputStream,
 				node.getLog());
 		protocol = new Protocol(node, packetSender);
@@ -125,17 +122,23 @@ public class RosSerial implements NodeMain {
 
 	@Override
 	public void shutdown() {
-		protocol.shutdown();
-		node.shutdown();
+    if (protocol != null) {
+  		protocol.shutdown();
+      protocol = null;
+    }
+    if (node != null) {
+  		node.shutdown();
+      node = null;
+    }
 		try {
 			inputStream.close();
 		} catch (IOException e) {
-			node.getLog().error("IO error while shutting down.", e);
+      e.printStackTrace();
 		}
 		try {
 			outputStream.close();
 		} catch (IOException e) {
-			node.getLog().error("IO error while shutting down.", e);
+      e.printStackTrace();
 		}
 	}
 }
