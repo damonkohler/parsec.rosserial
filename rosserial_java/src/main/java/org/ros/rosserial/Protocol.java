@@ -38,8 +38,11 @@ import java.util.Map;
 
 import com.google.common.collect.Maps;
 
+import org.ros.message.Duration;
 import org.ros.message.Message;
 import org.ros.message.MessageDeserializer;
+import org.ros.message.MessageListener;
+import org.ros.message.Time;
 import org.ros.message.rosserial_msgs.Log;
 import org.ros.message.rosserial_msgs.TopicInfo;
 import org.ros.node.Node;
@@ -93,13 +96,27 @@ class Protocol {
 	private final PacketSender packetSender;
 
 	private final Proxy proxy;
-
+	
+	/**
+	 * time offset to add when sending time to the micro controller.
+	 */
+	private Duration timeOffset;
+	
 	public Protocol(final Node node, PacketSender packetSender) {
 		this.node = node;
 		this.packetSender = packetSender;
 		proxy = new Proxy(node);
 		topicIds = Maps.newHashMap();
 		messageDeserializers = Maps.newHashMap();
+		timeOffset = new Duration(0);
+		node.newSubscriber(node.resolveName("wall_clock"), "std_msgs/Time",
+				new MessageListener<org.ros.message.std_msgs.Time>() {
+                    @Override
+                    public void onNewMessage(org.ros.message.std_msgs.Time message) {
+                        setTime(message.data);
+                    }
+                });
+
 		watchdogTimer = new WatchdogTimer(SYNC_TIMEOUT, new Runnable() {
 			@Override
 			public void run() {
@@ -223,8 +240,9 @@ class Protocol {
 			break;
 		case TopicInfo.ID_TIME:
 			org.ros.message.std_msgs.Time time = new org.ros.message.std_msgs.Time();
-			time.data = node.getCurrentTime();
+			time.data = node.getCurrentTime().add(timeOffset);
 			packetSender.send(constructMessage(TOPIC_TIME, time));
+			node.getLog().info("Sending time, offset " + timeOffset + " new time " + time.data);
 			watchdogTimer.pulse();
 			break;
 		default:
@@ -273,5 +291,17 @@ class Protocol {
 			node.getLog().fatal(log.msg);
 			break;
 		}
+	}
+	
+	/**
+	 * Set the time used for all ROS time stamps on the arduino. Since it can be 
+	 * pretty hard to set the clock correctly on Android based hardware, this method 
+	 * provides a way to overwrite the system time.
+	 * 
+	 * @param time
+	 * 				the new time
+	 */
+	public void setTime(Time time)	{
+		timeOffset = time.subtract(node.getCurrentTime());
 	}
 }
