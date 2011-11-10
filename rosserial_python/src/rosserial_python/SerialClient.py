@@ -292,7 +292,6 @@ class SerialClient:
             resp.floats=param
         if (t == str):
             resp.strings = param
-        print resp
         data_buffer = StringIO.StringIO()
         resp.serialize(data_buffer)
         self.send(TopicInfo.ID_PARAMETER_REQUEST, data_buffer.getvalue())
