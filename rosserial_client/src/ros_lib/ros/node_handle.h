@@ -370,10 +370,12 @@ namespace ros {
         rosserial_msgs::RequestParamRequest req;
         req.name  = (char*)name;
         node_output_.publish(TopicInfo::ID_PARAMETER_REQUEST, &req);
-        int end_time = hardware_.time();
+        int start_time = hardware_.time();
         while(!param_received) {
           spinOnce();
-          if (end_time > hardware_.time()) return false;
+          if (hardware_.time() > start_time + time_out) {
+            return false;
+          }
         }
         return true;
       }

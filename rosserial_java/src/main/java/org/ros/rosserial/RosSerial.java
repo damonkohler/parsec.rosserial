@@ -122,23 +122,23 @@ public class RosSerial implements NodeMain {
 
 	@Override
 	public void shutdown() {
-    if (protocol != null) {
-  		protocol.shutdown();
-      protocol = null;
-    }
-    if (node != null) {
-  		node.shutdown();
-      node = null;
-    }
+		if (protocol != null) {
+			protocol.shutdown();
+			protocol = null;
+		}
+		if (node != null) {
+			node.shutdown();
+			node = null;
+		}
 		try {
 			inputStream.close();
 		} catch (IOException e) {
-      e.printStackTrace();
+			e.printStackTrace();
 		}
 		try {
 			outputStream.close();
 		} catch (IOException e) {
-      e.printStackTrace();
+			e.printStackTrace();
 		}
 	}
 }
