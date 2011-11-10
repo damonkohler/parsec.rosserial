@@ -271,7 +271,7 @@ class SerialClient:
         req = RequestParamRequest()
         req.deserialize(data)
         resp = RequestParamResponse()
-        param = rospy.get_param(req.name)
+        param = rospy.get_param(req.name, None)
         if param == None:
             rospy.logerr("Parameter %s does not exist"%req.name)
             return
