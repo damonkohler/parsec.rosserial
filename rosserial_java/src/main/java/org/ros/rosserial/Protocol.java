@@ -93,7 +93,7 @@ class Protocol {
 	private final PacketSender packetSender;
 
 	private final Proxy proxy;
-	
+
 	public Protocol(final Node node, PacketSender packetSender) {
 		this.node = node;
 		this.packetSender = packetSender;
@@ -217,7 +217,11 @@ class Protocol {
 		case TopicInfo.ID_SERVICE_CLIENT:
 			throw new UnsupportedOperationException();
 		case TopicInfo.ID_PARAMETER_REQUEST:
-			throw new UnsupportedOperationException();
+			// NOTE(damonkohler): It is safe to simply ignore this request until
+			// parameters are supported. The client will timeout waiting for a
+			// response.
+			// TODO(damonkohler): Implement rosparam support.
+			break;
 		case TopicInfo.ID_LOG:
 			handleLogging(data);
 			break;
