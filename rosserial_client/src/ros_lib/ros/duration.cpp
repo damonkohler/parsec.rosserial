@@ -32,36 +32,73 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ros.h"
-#include "ros/time.h"
+#include "ros/duration.h"
+
+#include <math.h>
 
 namespace ros {
 
-  void normalizeSecNSec(unsigned long& sec, unsigned long& nsec) {
-    unsigned long nsec_part= nsec % 1000000000UL;
-    unsigned long sec_part = nsec / 1000000000UL;
-    sec += sec_part;
+  void normalizeSecNsecSigned(long &sec, long &nsec) {
+    long nsec_part = nsec;
+    long sec_part = sec;
+
+    while (nsec_part > 1000000000l) {
+      nsec_part -= 1000000000l;
+      ++sec_part;
+    }
+    while (nsec_part < 0) {
+      nsec_part += 1000000000l;
+      --sec_part;
+    }
+    sec = sec_part;
     nsec = nsec_part;
   }
 
-  Time& Time::fromNSec(long t) {
-    sec = t / 1000000000;
-    nsec = t % 1000000000;
-    normalizeSecNSec(sec, nsec);
+  Duration::Duration() : sec(0), nsec(0) {}
+
+  Duration::Duration(long _sec, long _nsec) : sec(_sec), nsec(_nsec) {
+    normalizeSecNsecSigned(sec, nsec);
+  }
+
+  double Duration::toSec() const {
+    return (double) sec + 1e-9 * (double) nsec;
+  }
+
+  Duration& Duration::fromSec(double seconds) {
+    sec = (long) floor(seconds);
+    nsec = (long) round((seconds - sec) * 1e9);
     return *this;
   }
 
-  Time& Time::operator+=(const Duration &rhs) {
+  unsigned long Duration::toNsec() {
+    return sec * 1000000000l + nsec;
+  }
+
+  Duration& Duration::fromNsec(long nsec) {
+    sec = nsec / 1000000000l;
+    nsec = nsec % 1000000000l;
+    normalizeSecNsecSigned(sec, nsec);
+    return *this;
+  }
+
+  Duration& Duration::operator+=(const Duration &rhs) {
     sec += rhs.sec;
     nsec += rhs.nsec;
-    normalizeSecNSec(sec, nsec);
+    normalizeSecNsecSigned(sec, nsec);
     return *this;
   }
 
-  Time& Time::operator-=(const Duration &rhs){
+  Duration& Duration::operator-=(const Duration &rhs){
     sec += -rhs.sec;
     nsec += -rhs.nsec;
-    normalizeSecNSec(sec, nsec);
+    normalizeSecNsecSigned(sec, nsec);
+    return *this;
+  }
+
+  Duration& Duration::operator*=(double scale){
+    sec *= scale;
+    nsec *= scale;
+    normalizeSecNsecSigned(sec, nsec);
     return *this;
   }
 

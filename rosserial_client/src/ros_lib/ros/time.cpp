@@ -32,45 +32,57 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "ros/time.h"
+
 #include <math.h>
-#include "ros/duration.h"
 
 namespace ros {
 
-  void normalizeSecNSecSigned(long &sec, long &nsec) {
-    long nsec_part = nsec;
-    long sec_part = sec;
-
-    while (nsec_part > 1000000000L) {
-      nsec_part -= 1000000000L;
-      ++sec_part;
-    }
-    while (nsec_part < 0) {
-      nsec_part += 1000000000L;
-      --sec_part;
-    }
-    sec = sec_part;
+  void normalizeSecNsec(unsigned long& sec, unsigned long& nsec) {
+    unsigned long nsec_part = nsec % 1000000000ul;
+    unsigned long sec_part = nsec / 1000000000ul;
+    sec += sec_part;
     nsec = nsec_part;
   }
 
-  Duration& Duration::operator+=(const Duration &rhs) {
+  Time::Time() : sec(0), nsec(0) {}
+
+  Time::Time(unsigned long _sec, unsigned long _nsec) : sec(_sec), nsec(_nsec) {
+    normalizeSecNsec(sec, nsec);
+  }
+
+  Time& Time::operator+=(const Duration &rhs) {
     sec += rhs.sec;
     nsec += rhs.nsec;
-    normalizeSecNSecSigned(sec, nsec);
+    normalizeSecNsec(sec, nsec);
     return *this;
   }
 
-  Duration& Duration::operator-=(const Duration &rhs){
+  Time& Time::operator-=(const Duration &rhs){
     sec += -rhs.sec;
     nsec += -rhs.nsec;
-    normalizeSecNSecSigned(sec, nsec);
+    normalizeSecNsec(sec, nsec);
     return *this;
   }
 
-  Duration& Duration::operator*=(double scale){
-    sec *= scale;
-    nsec *= scale;
-    normalizeSecNSecSigned(sec, nsec);
+  double Time::toSec() const {
+    return (double) sec + 1e-9 * (double) nsec;
+  }
+
+  Time& Time::fromSec(double seconds) {
+    sec = (unsigned long) floor(seconds);
+    nsec = (unsigned long) round((seconds - sec) * 1e9);
+    return *this;
+  }
+
+  unsigned long Time::toNsec() {
+    return sec * 1000000000ul + nsec;
+  }
+
+  Time& Time::fromNsec(unsigned long nsec) {
+    sec = nsec / 1000000000ul;
+    nsec = nsec % 1000000000ul;
+    normalizeSecNsec(sec, nsec);
     return *this;
   }
 

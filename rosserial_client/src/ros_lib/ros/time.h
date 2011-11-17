@@ -35,38 +35,28 @@
 #ifndef ROS_TIME_H_
 #define ROS_TIME_H_
 
-#include <math.h>
-
 #include "ros/duration.h"
 
 namespace ros {
 
-  void normalizeSecNSec(unsigned long &sec, unsigned long &nsec);
+  void normalizeSecNsec(unsigned long &sec, unsigned long &nsec);
 
   class Time {
     public:
-      unsigned long sec, nsec;
+      unsigned long sec;
+      unsigned long nsec;
 
-      Time() : sec(0), nsec(0) {}
-      Time(unsigned long _sec, unsigned long _nsec) : sec(_sec), nsec(_nsec) {
-        normalizeSecNSec(sec, nsec);
-      }
+      Time();
+      Time(unsigned long _sec, unsigned long _nsec);
 
-      double toSec() const { return (double)sec + 1e-9*(double)nsec; };
+      double toSec() const;
+      Time& fromSec(double seconds);
 
-      void fromSec(double t) {
-        sec = (unsigned long) floor(t);
-        nsec = (unsigned long) round((t-sec) * 1e9);
-      };
-
-      unsigned long toNsec() { return (unsigned long)sec*1000000000ull + (unsigned long)nsec; };
-      Time& fromNSec(long t);
+      unsigned long toNsec();
+      Time& fromNsec(unsigned long nanoseconds);
 
       Time& operator +=(const Duration &rhs);
       Time& operator -=(const Duration &rhs);
-
-      static Time now();
-      static void setNow(Time & new_now);
   };
 
 }  // namespace ros

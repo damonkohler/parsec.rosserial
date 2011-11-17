@@ -21,7 +21,7 @@
 * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-* FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+* FOR A PARTICulAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
 * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
 * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
@@ -35,6 +35,8 @@
 #ifndef ROS_NODE_HANDLE_H_
 #define ROS_NODE_HANDLE_H_
 
+#include <stdio.h>
+
 #include <std_msgs/Time.h>
 #include <rosserial_msgs/TopicInfo.h>
 #include <rosserial_msgs/Log.h>
@@ -42,7 +44,7 @@
 
 #define SYNC_SECONDS 5
 
-#define MSG_TIMEOUT 20  // 20 ms to receive all of message data
+#define MSG_TIMEOUT 20  // 20 now to receive all of message data
 
 #include "msg_receiver.h"
 #include "node_output.h"
@@ -73,22 +75,6 @@ namespace ros {
            int INPUT_SIZE=512,
            int OUTPUT_SIZE=512>
   class NodeHandle_ {
-    protected:
-      Hardware hardware_;
-      NodeOutput<Hardware, OUTPUT_SIZE> node_output_;
-
-      // time used for syncing
-      unsigned long remote_time_;
-
-      // used for computing current time
-      unsigned long sec_offset, nsec_offset;
-
-      unsigned char message_in[INPUT_SIZE];
-
-      Publisher* publishers[MAX_PUBLISHERS];
-      MsgReceiver* receivers[MAX_SUBSCRIBERS];
-
-    // Setup Functions
     public:
       NodeHandle_() : node_output_(&hardware_) {}
 
@@ -104,7 +90,41 @@ namespace ros {
         reset();
       }
 
+      void logdebug(const char* msg) {
+        log(rosserial_msgs::Log::DEBUG, msg);
+      }
+
+      void loginfo(const char* msg) {
+        log(rosserial_msgs::Log::INFO, msg);
+      }
+
+      void logwarn(const char* msg) {
+        log(rosserial_msgs::Log::WARN, msg);
+      }
+
+      void logerror(const char* msg) {
+        log(rosserial_msgs::Log::ERROR, msg);
+      }
+
+      void logfatal(const char* msg) {
+        log(rosserial_msgs::Log::FATAL, msg);
+      }
+
     protected:
+      Hardware hardware_;
+      NodeOutput<Hardware, OUTPUT_SIZE> node_output_;
+
+      // millis() when the time sync was requested.
+      unsigned long time_sync_start_time_;
+
+      // Time time_offset_ from the host in milliseconds.
+      unsigned long time_offset_;
+
+      unsigned char message_in[INPUT_SIZE];
+
+      Publisher* publishers[MAX_PUBLISHERS];
+      MsgReceiver* receivers[MAX_SUBSCRIBERS];
+
       // State machine variables for spinOnce
       PacketState state_;
       int remaining_data_bytes_;
@@ -117,7 +137,7 @@ namespace ros {
 
       // used for syncing the time
       unsigned long last_sync_time;
-      unsigned long last_sync_receive_time;
+      unsigned long last_time_sync_time_;
       unsigned long last_msg_timeout_time;
 
       bool registerReceiver(MsgReceiver* receiver) {
@@ -144,9 +164,9 @@ namespace ros {
       // serial input and callbacks for subscribers.
       virtual void spinOnce() {
         // restart if timed out
-        unsigned long current_time = hardware_.time();  // ms
+        unsigned long current_time = hardware_.time();  // now
         // TODO(damonkohler): Why *2200?
-        if ((current_time - last_sync_receive_time) > (SYNC_SECONDS * 2200)) {
+        if ((current_time - last_time_sync_time_) > (SYNC_SECONDS * 2200)) {
           node_output_.setConfigured(false);
         }
         // Reset state if message has timed out.
@@ -216,7 +236,7 @@ namespace ros {
                   requestSyncTime();
                   negotiateTopics();
                   last_sync_time = current_time;
-                  last_sync_receive_time = current_time;
+                  last_time_sync_time_ = current_time;
                 } else if (topic_ == TopicInfo::ID_TIME) {
                   syncTime(message_in);
                 } else if (topic_ == TopicInfo::ID_PARAMETER_REQUEST) {
@@ -259,33 +279,25 @@ namespace ros {
         // TODO(damonkohler): Why publish an empty message here?
         std_msgs::Time time;
         node_output_.publish(rosserial_msgs::TopicInfo::ID_TIME, &time);
-        remote_time_ = hardware_.time();
+        time_sync_start_time_ = hardware_.time();
       }
 
       void syncTime(unsigned char* data) {
+        time_offset_ = (hardware_.time() - time_sync_start_time_) / 2;
         std_msgs::Time time;
-        unsigned long lag = hardware_.time() - remote_time_;
         time.deserialize(data);
-        time.data.sec += lag / 1000;
-        time.data.nsec += (lag % 1000) * 1000000UL;
-        setNow(time.data);
-        last_sync_receive_time = hardware_.time();
+        time.data.sec += time_offset_ / 1000;
+        time.data.nsec += (time_offset_ % 1000) * 1000000ul;
+        last_time_sync_time_ = hardware_.time();
+        char message[40];
+        snprintf(message, 40, "Time: %lu %lu", time.data.sec, time.data.nsec);
+        loginfo(message);
       }
 
       Time now() const {
-        unsigned long ms = hardware_.time();
+        unsigned long now = hardware_.time() + time_offset_;
         Time current_time;
-        current_time.sec = ms / 1000 + sec_offset;
-        current_time.nsec = (ms % 1000) * 1000000UL + nsec_offset;
-        normalizeSecNSec(current_time.sec, current_time.nsec);
-        return current_time;
-      }
-
-      void setNow(Time& new_now) {
-        unsigned long ms = hardware_.time();
-        sec_offset = new_now.sec - ms / 1000 - 1;
-        nsec_offset = new_now.nsec - (ms % 1000) * 1000000UL + 1000000000UL;
-        normalizeSecNSec(sec_offset, nsec_offset);
+        return current_time.fromSec(now / 1000);
       }
 
       // Registration
@@ -334,36 +346,16 @@ namespace ros {
         }
       }
 
-    // Logging
     private:
+      bool param_received;
+      rosserial_msgs::RequestParamResponse req_param_resp;
+
       void log(char byte, const char* msg) {
         rosserial_msgs::Log l;
         l.level = byte;
         l.msg = const_cast<char*>(msg);
         this->node_output_.publish(rosserial_msgs::TopicInfo::ID_LOG, &l);
       }
-
-    public:
-      void logdebug(const char* msg) {
-        log(rosserial_msgs::Log::DEBUG, msg);
-      }
-      void loginfo(const char* msg) {
-        log(rosserial_msgs::Log::INFO, msg);
-      }
-      void logwarn(const char* msg) {
-        log(rosserial_msgs::Log::WARN, msg);
-      }
-      void logerror(const char* msg) {
-        log(rosserial_msgs::Log::ERROR, msg);
-      }
-      void logfatal(const char* msg) {
-        log(rosserial_msgs::Log::FATAL, msg);
-      }
-
-    // Retrieve Parameters
-    private:
-      bool param_received;
-      rosserial_msgs::RequestParamResponse req_param_resp;
 
       bool requestParam(const char* name, int time_out=1000) {
         param_received = false;
