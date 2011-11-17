@@ -117,8 +117,8 @@ namespace ros {
       // millis() when the time sync was requested.
       unsigned long time_sync_start_time_;
 
-      // Time time_offset_ from the host in milliseconds.
-      unsigned long time_offset_;
+      // Time epoch_time_offset_ from the host in milliseconds.
+      unsigned long epoch_time_offset_;
 
       unsigned char message_in[INPUT_SIZE];
 
@@ -283,21 +283,24 @@ namespace ros {
       }
 
       void syncTime(unsigned char* data) {
-        time_offset_ = (hardware_.time() - time_sync_start_time_) / 2;
+        unsigned long uptime = hardware_.time();
+        unsigned long offset = (uptime - time_sync_start_time_) / 2;
         std_msgs::Time time;
         time.deserialize(data);
-        time.data.sec += time_offset_ / 1000;
-        time.data.nsec += (time_offset_ % 1000) * 1000000ul;
-        last_time_sync_time_ = hardware_.time();
+        time.data.sec += offset / 1000;
+        time.data.nsec += (offset % 1000) * 1000000ul;
+        Time now(time.data.sec, time.data.nsec);
+        epoch_time_offset_ = now.toNsec() / 1000 - uptime;
+        last_time_sync_time_ = uptime;
         char message[40];
         snprintf(message, 40, "Time: %lu %lu", time.data.sec, time.data.nsec);
         loginfo(message);
       }
 
       Time now() const {
-        unsigned long now = hardware_.time() + time_offset_;
+        unsigned long now = hardware_.time() + epoch_time_offset_;
         Time current_time;
-        return current_time.fromSec(now / 1000);
+        return current_time.fromNsec(now * 1000);
       }
 
       // Registration
