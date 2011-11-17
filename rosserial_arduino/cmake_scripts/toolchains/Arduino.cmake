@@ -36,7 +36,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${ARDUINO_LINKER_FLAGS}" CACHE STRING
 #=============================================================================#
 #                       Shared Lbrary Linker Flags                            #
 #=============================================================================#
-set(CMAKE_SHARED_LINKER_FLAGS                ""         CACHE STRING "")
+set(CMAKE_SHARED_LINKER_FLAGS                ""                        CACHE STRING "")
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG          ""                        CACHE STRING "")
 set(CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL     ""                        CACHE STRING "")
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE        ""                        CACHE STRING "")
