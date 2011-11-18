@@ -57,7 +57,20 @@ namespace ros {
 using rosserial_msgs::TopicInfo;
 
 NodeHandle::NodeHandle(Hardware* hardware)
-    : hardware_(hardware), node_output_(hardware) {}
+    : hardware_(hardware),
+      node_output_(hardware),
+      connected_(false),
+      param_received_(false),
+      time_sync_start_(0),
+      time_sync_end_(0),
+      state_(STATE_FIRST_FF),
+      remaining_data_bytes_(0),
+      topic_(0),
+      data_index_(0),
+      checksum_(0),
+      error_count_(0),
+      total_receivers_(0),
+      last_message_time_(0) {}
 
 Hardware* NodeHandle::getHardware() {
   return hardware_;
@@ -107,12 +120,14 @@ void NodeHandle::reset() {
   topic_ = 0;
   data_index_ = 0;
   checksum_ = 0;
+  last_message_time_ = 0;
 }
 
 void NodeHandle::spinOnce() {
   unsigned long current_time = hardware_->time();
 
-  if (current_time > last_msg_timeout_time) {
+  if (last_message_time_ > 0 &&
+      current_time > last_message_time_ + MSG_TIMEOUT) {
     reset();
   }
 
@@ -126,7 +141,7 @@ void NodeHandle::spinOnce() {
       case STATE_FIRST_FF:
         if (inputByte == 0xff) {
           state_ = STATE_SECOND_FF;
-          last_msg_timeout_time = current_time + MSG_TIMEOUT;
+          last_message_time_ = current_time;
         } else {
           reset();
         }
@@ -173,11 +188,11 @@ void NodeHandle::spinOnce() {
       case STATE_CHECKSUM:  // do checksum
         if ((checksum_ % 256) == 255) {
           if (topic_ == TOPIC_NEGOTIATION) {
-            requestSyncTime();
+            requestTimeSync();
             negotiateTopics();
             connected_ = true;
           } else if (topic_ == TopicInfo::ID_TIME) {
-            syncTime(message_in);
+            completeTimeSync(message_in);
           } else if (topic_ == TopicInfo::ID_PARAMETER_REQUEST) {
             req_param_resp.deserialize(message_in);
             param_received_ = true;
@@ -195,9 +210,9 @@ void NodeHandle::spinOnce() {
     }
   }
 
-  // Sync time every SYNC_PERIOD.
+  // Sync time every SYNC_PERIOD seconds.
   if (current_time - time_sync_end_ > SYNC_PERIOD * 1000) {
-    requestSyncTime();
+    requestTimeSync();
   }
 }
 
@@ -205,32 +220,39 @@ int NodeHandle::getErrorCount() const {
   return error_count_;
 }
 
-void NodeHandle::requestSyncTime() {
+void NodeHandle::requestTimeSync() {
+  if (time_sync_start_ > 0) {
+    // A time sync request is already in flight.
+    return;
+  }
   // TODO(damonkohler): Why publish an empty message here?
   std_msgs::Time time;
   node_output_.publish(rosserial_msgs::TopicInfo::ID_TIME, &time);
   time_sync_start_ = hardware_->time();
 }
 
-void NodeHandle::syncTime(unsigned char* data) {
+void NodeHandle::completeTimeSync(unsigned char* data) {
   // TODO(damonkohler): Use micros() for higher precision?
   time_sync_end_ = hardware_->time();
   unsigned long offset = (time_sync_end_ - time_sync_start_) / 2;
   std_msgs::Time time;
   time.deserialize(data);
-  time.data.sec += offset / 1000;
-  time.data.nsec += (offset % 1000) * 1000000ul;
-  Time now(time.data.sec, time.data.nsec);
-  epoch_time_offset_ = now.toNSec() / 1000000ul - time_sync_end_;
+  sync_time_ = time.data;
+  sync_time_.sec += offset / 1000;
+  sync_time_.nsec += (offset % 1000) * 1000000ul;
+  time_sync_start_ = 0;
   char message[40];
-  snprintf(message, 40, "Time: %lu %lu", time.data.sec, time.data.nsec);
-  loginfo(message);
+  snprintf(message, 40, "Time: %lu %lu", sync_time_.sec, sync_time_.nsec);
+  logdebug(message);
 }
 
 Time NodeHandle::now() const {
-  unsigned long long now = hardware_->time() + epoch_time_offset_;
-  Time current_time;
-  return current_time.fromNSec(now * 1000);
+  unsigned long offset = hardware_->time() - time_sync_end_;
+  Time time;
+  time.sec = sync_time_.sec + offset / 1000;
+  time.nsec = sync_time_.nsec + (offset % 1000) * 1000000ul;
+  normalizeSecNSec(time.sec, time.nsec);
+  return time;
 }
 
 // Registration
