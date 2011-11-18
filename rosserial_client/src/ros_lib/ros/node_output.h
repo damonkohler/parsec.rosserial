@@ -36,74 +36,62 @@
 #define ROS_NODE_OUTPUT_H_
 
 #include "msg.h"
+#include "hardware.h"
 
 namespace ros {
 
-   // This class is responsible for controlling the node ouput.
-   // It it is the object that is passed to Publishers and services
-  class NodeOutput_ {
-    public:
-      // Publishes the provided message and returns the number of bytes
-      // written.
-      virtual int publish(int id, Msg* msg) = 0;
-  };
+ // This class is responsible for controlling the node ouput.
+ // It it is the object that is passed to Publishers and services
+class NodeOutput_ {
+ public:
+  // Publishes the provided message and returns the number of bytes
+  // written.
+  virtual int publish(int id, Msg* msg) = 0;
+};
 
-  template<class Hardware, int BUFFER_SIZE>
-  class NodeOutput : public NodeOutput_ {
-    public:
-      NodeOutput(Hardware* hardware) : hardware_(hardware) {}
+template<int BUFFER_SIZE>
+class NodeOutput : public NodeOutput_ {
+ public:
+  NodeOutput(Hardware* hardware) : hardware_(hardware) {}
 
-      void setConfigured(bool configured) {
-        configured_ = configured;
-      }
+  virtual int publish(int id, Msg* msg) {
+    // TODO(damonkohler): The serialization should check that we don't
+    // overflow our buffer.
+    int length = msg->serialize(message_out + 6);
+    if (length + 7 > BUFFER_SIZE) {
+      // It would be better to crash horribly. That will probably happen anyway though...
+      return 0;
+    }
 
-      bool configured() {
-        return configured_;
-      }
+    // Build the header
+    // Sync flags
+    message_out[0] = 0xff;
+    message_out[1] = 0xff;
+    // Topic ID
+    message_out[2] = (unsigned char) id & 255;
+    message_out[3] = (unsigned char) id >> 8;
+    // Data length
+    message_out[4] = (unsigned char) length & 255;
+    message_out[5] = ((unsigned char) length >> 8);
 
-      virtual int publish(int id, Msg* msg) {
-        if (!configured_) {
-          return 0;
-        }
+    // calculate checksum
+    int chk = 0;
+    for (int i = 2; i < length + 6; i++) {
+      chk += message_out[i];
+    }
+    length += 6;  // Include the header length.
+    message_out[length++] = 255 - (chk % 256);  // Add checksum byte and increase length.
+    hardware_->write(message_out, length);
+    return length;
+  }
 
-        // TODO(damonkohler): The serialization should check that we don't
-        // overflow our buffer.
-        int length = msg->serialize(message_out + 6);
-        if (length + 7 > BUFFER_SIZE) {
-          // It would be better to crash horribly. That will probably happen anyway though...
-          return 0;
-        }
+ private:
+  Hardware* hardware_;
+  unsigned char message_out[BUFFER_SIZE];
 
-        // Build the header
-        // Sync flags
-        message_out[0] = 0xff;
-        message_out[1] = 0xff;
-        // Topic ID
-        message_out[2] = (unsigned char) id & 255;
-        message_out[3] = (unsigned char) id >> 8;
-        // Data length
-        message_out[4] = (unsigned char) length & 255;
-        message_out[5] = ((unsigned char) length >> 8);
-
-        // calculate checksum
-        int chk = 0;
-        for (int i = 2; i < length + 6; i++) {
-          chk += message_out[i];
-        }
-        length += 6;  // Include the header length.
-        message_out[length++] = 255 - (chk % 256);  // Add checksum byte and increase length.
-        hardware_->write(message_out, length);
-        return length;
-      }
-
-    private:
-      NodeOutput(const NodeOutput&);
-      void operator=(const NodeOutput&);
-
-      Hardware* hardware_;
-      bool configured_;
-      unsigned char message_out[BUFFER_SIZE];
-  };
+  NodeOutput(const NodeOutput&);
+  void operator=(const NodeOutput&);
+};
 
 }  // namespace ros
 

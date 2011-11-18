@@ -32,16 +32,49 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ROS_H
-#define ROS_H
+#ifndef ROS_ARDUINO_HARDWARE_H_
+#define ROS_ARDUINO_HARDWARE_H_
 
-#include "ros/node_handle.h"
-#include "ArduinoHardware.h"
+#include <WProgram.h>
+#include <HardwareSerial.h>
 
-namespace ros {
+#include "ros/hardware.h"
 
-  typedef NodeHandle_<ArduinoHardware> NodeHandle;
+class ArduinoHardware : public ros::Hardware {
+ public:
+  ArduinoHardware(HardwareSerial* iostream=&Serial, long baud=115200)
+      : iostream_(iostream), baud_(baud) {}
 
-}  // namespace ros
+  void setBaud(long baud) {
+    baud_ = baud;
+  }
 
-#endif
+  int getBaud() const {
+    return baud_;
+  }
+
+  void init() {
+    iostream_->begin(baud_);
+  }
+
+  int read() {
+    return iostream_->read();
+  }
+
+  void write(uint8_t* data, int length) {
+    iostream_->write(data, length);
+  }
+
+  unsigned long time() const {
+    return millis();
+  }
+
+ private:
+  long baud_;
+  HardwareSerial* iostream_;
+
+  ArduinoHardware(const ArduinoHardware&);
+  void operator=(const ArduinoHardware&);
+};
+
+#endif  // ROS_ARDUINO_HARDWARE_H_

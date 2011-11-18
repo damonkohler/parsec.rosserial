@@ -38,10 +38,9 @@
 
 namespace ros {
 
-  void normalizeSecNsecSigned(long &sec, long &nsec) {
-    long nsec_part = nsec;
+  void normalizeSecNSecSigned(long &sec, long &nsec) {
     long sec_part = sec;
-
+    long nsec_part = nsec;
     while (nsec_part > 1000000000l) {
       nsec_part -= 1000000000l;
       ++sec_part;
@@ -57,7 +56,7 @@ namespace ros {
   Duration::Duration() : sec(0), nsec(0) {}
 
   Duration::Duration(long _sec, long _nsec) : sec(_sec), nsec(_nsec) {
-    normalizeSecNsecSigned(sec, nsec);
+    normalizeSecNSecSigned(sec, nsec);
   }
 
   double Duration::toSec() const {
@@ -70,35 +69,34 @@ namespace ros {
     return *this;
   }
 
-  unsigned long Duration::toNsec() {
+  unsigned long Duration::toNSec() {
     return sec * 1000000000l + nsec;
   }
 
-  Duration& Duration::fromNsec(long nsec) {
+  Duration& Duration::fromNSec(long nsec) {
     sec = nsec / 1000000000l;
     nsec = nsec % 1000000000l;
-    normalizeSecNsecSigned(sec, nsec);
     return *this;
   }
 
   Duration& Duration::operator+=(const Duration &rhs) {
     sec += rhs.sec;
     nsec += rhs.nsec;
-    normalizeSecNsecSigned(sec, nsec);
+    normalizeSecNSecSigned(sec, nsec);
     return *this;
   }
 
   Duration& Duration::operator-=(const Duration &rhs){
     sec += -rhs.sec;
     nsec += -rhs.nsec;
-    normalizeSecNsecSigned(sec, nsec);
+    normalizeSecNSecSigned(sec, nsec);
     return *this;
   }
 
   Duration& Duration::operator*=(double scale){
     sec *= scale;
     nsec *= scale;
-    normalizeSecNsecSigned(sec, nsec);
+    normalizeSecNSecSigned(sec, nsec);
     return *this;
   }
 

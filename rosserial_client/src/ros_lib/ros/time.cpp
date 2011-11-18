@@ -38,9 +38,9 @@
 
 namespace ros {
 
-  void normalizeSecNsec(unsigned long& sec, unsigned long& nsec) {
-    unsigned long nsec_part = nsec % 1000000000ul;
+  void normalizeSecNSec(unsigned long& sec, unsigned long& nsec) {
     unsigned long sec_part = nsec / 1000000000ul;
+    unsigned long nsec_part = nsec % 1000000000ul;
     sec += sec_part;
     nsec = nsec_part;
   }
@@ -48,20 +48,20 @@ namespace ros {
   Time::Time() : sec(0), nsec(0) {}
 
   Time::Time(unsigned long _sec, unsigned long _nsec) : sec(_sec), nsec(_nsec) {
-    normalizeSecNsec(sec, nsec);
+    normalizeSecNSec(sec, nsec);
   }
 
   Time& Time::operator+=(const Duration &rhs) {
     sec += rhs.sec;
     nsec += rhs.nsec;
-    normalizeSecNsec(sec, nsec);
+    normalizeSecNSec(sec, nsec);
     return *this;
   }
 
   Time& Time::operator-=(const Duration &rhs){
     sec += -rhs.sec;
     nsec += -rhs.nsec;
-    normalizeSecNsec(sec, nsec);
+    normalizeSecNSec(sec, nsec);
     return *this;
   }
 
@@ -75,14 +75,13 @@ namespace ros {
     return *this;
   }
 
-  unsigned long Time::toNsec() {
+  unsigned long Time::toNSec() {
     return sec * 1000000000ul + nsec;
   }
 
-  Time& Time::fromNsec(unsigned long nsec) {
+  Time& Time::fromNSec(unsigned long nsec) {
     sec = nsec / 1000000000ul;
     nsec = nsec % 1000000000ul;
-    normalizeSecNsec(sec, nsec);
     return *this;
   }
 

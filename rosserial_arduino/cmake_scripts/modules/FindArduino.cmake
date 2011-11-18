@@ -20,7 +20,7 @@
 #       set(test_SRCS  test.cpp)
 #       set(test_HDRS  test.h)
 #       set(test_BOARD uno)
-#    
+#
 #       generate_arduino_firmware(test)
 #
 #
@@ -38,12 +38,12 @@
 #      _LIBS           # Libraries to linked in
 #      _BOARD          # Board name (such as uno, mega2560, ...)
 #      _NO_AUTOLIBS    # Disables Arduino library detection
-# 
+#
 # Here is a short example for a target named test:
 #       set(test_SRCS  test.cpp)
 #       set(test_HDRS  test.h)
 #       set(test_BOARD uno)
-#    
+#
 #       generate_arduino_library(test)
 
 
@@ -101,7 +101,7 @@ function(LOAD_BOARD_SETTINGS)
 
             # Save setting value
             set(${ARDUINO_SETTING_NAME} ${SETTING_VALUE} CACHE INTERNAL "Arduino ${BOARD_ID} Board setting")
-            
+
 
         endif()
     endforeach()
@@ -152,7 +152,7 @@ function(GENERATE_ARDUINO_LIBRARY TARGET_NAME)
     endif()
 
     message(STATUS "Generating ${TARGET_NAME}")
-    
+
     set(ALL_LIBS)
     set(ALL_SRCS ${INPUT_SRCS} ${INPUT_HDRS})
 
@@ -164,7 +164,7 @@ function(GENERATE_ARDUINO_LIBRARY TARGET_NAME)
     endif()
 
     list(APPEND ALL_LIBS ${CORE_LIB} ${INPUT_LIBS})
-        
+
     add_library(${TARGET_NAME} ${ALL_SRCS})
     target_link_libraries(${TARGET_NAME} ${ALL_LIBS})
 endfunction()
@@ -181,7 +181,7 @@ function(GENERATE_ARDUINO_FIRMWARE TARGET_NAME)
                                                  _AFLAGS     # Override global Avrdude flags for target
                                                  _SKETCHES   # Arduino sketch files
                                                  _SERIAL)    # Serial command for serial target
-                            
+
     set(INPUT_AUTOLIBS True)
     if(DEFINED ${TARGET_NAME}_NO_AUTOLIBS AND ${TARGET_NAME}_NO_AUTOLIBS)
         set(INPUT_AUTOLIBS False)
@@ -194,7 +194,7 @@ function(GENERATE_ARDUINO_FIRMWARE TARGET_NAME)
 
     setup_arduino_compiler(${INPUT_BOARD})
     setup_arduino_core(CORE_LIB ${INPUT_BOARD})
-	
+
 	set(ALL_SRCS ${INPUT_SRCS} ${CORE_SRCS})
 
     #setup_arduino_sketch(SKETCH_SRCS ${INPUT_SKETCHES})
@@ -202,16 +202,16 @@ function(GENERATE_ARDUINO_FIRMWARE TARGET_NAME)
         setup_arduino_libraries(ALL_LIBS ${INPUT_BOARD} "${ALL_SRCS}")
     endif()
 
-    
+
     list(APPEND ALL_LIBS ${CORE_LIB} ${INPUT_LIBS})
     #message(STATUS "ALL LIBS ARE : ${ALL_LIBS}")
-    
+
     setup_arduino_target(${TARGET_NAME} "${ALL_SRCS}" "${ALL_LIBS}")
-    
+
     if(INPUT_PORT)
         setup_arduino_upload(${INPUT_BOARD} ${TARGET_NAME} ${INPUT_PORT})
     endif()
-    
+
     if(INPUT_SERIAL)
         setup_serial_target(${TARGET_NAME} "${INPUT_SERIAL}")
     endif()
@@ -283,8 +283,8 @@ function(setup_arduino_core VAR_NAME BOARD_ID)
     if(BOARD_CORE AND NOT TARGET ${CORE_LIB_NAME})
         set(BOARD_CORE_PATH ${ARDUINO_CORES_PATH}/${BOARD_CORE})
         find_sources(CORE_SRCS ${BOARD_CORE_PATH})
-        
-        #the following block is a hack to allow the 
+
+        #the following block is a hack to allow the
         #natty arduino deb to work with this cmake file
         #natty includes a main.cxx as well as a main.cpp file
         #this extra file causes main to be included 2 times
@@ -293,9 +293,9 @@ function(setup_arduino_core VAR_NAME BOARD_ID)
 	   foreach(SRC ${CORE_SRCS})
 		string(REGEX REPLACE ".*/main.cxx" ""  SRCOUT ${SRC})
 		set(TEMP ${TEMP} ${SRCOUT} )
-       endforeach(SRC) 
+       endforeach(SRC)
 	   set(CORE_SRCS ${TEMP} )
-	   
+
       add_library(${CORE_LIB_NAME} ${CORE_SRCS})
         set(${VAR_NAME} ${CORE_LIB_NAME} PARENT_SCOPE)
     endif()
@@ -328,7 +328,7 @@ function(find_arduino_libraries VAR_NAME SRCS)
     foreach(SRC ${SRCS})
         file(STRINGS ${SRC} SRC_CONTENTS)
         foreach(SRC_LINE ${SRC_CONTENTS})
-            if("${SRC_LINE}" MATCHES "^ *#include *[<\"](.*)[>\"]")
+            if(SRC_LINE MATCHES "^ *#include *[<\"](.*)[>\"]")
                 get_filename_component(INCLUDE_NAME ${CMAKE_MATCH_1} NAME_WE)
                 foreach(LIB_SEARCH_PATH ${ARDUINO_LIBRARIES_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
                     if(EXISTS ${LIB_SEARCH_PATH}/${INCLUDE_NAME}/${CMAKE_MATCH_1})
@@ -446,7 +446,7 @@ function(setup_arduino_upload BOARD_ID TARGET_NAME PORT)
         set(AVRDUDE_FLAGS ${${TARGET_NAME}_AFLAGS})
     endif()
     add_custom_target(${TARGET_NAME}-upload
-                     stty -F ${PORT} hupcl   && ${ARDUINO_SDK_PATH}/hardware/tools/avrdude#${ARDUINO_AVRDUDE_PROGRAM} 
+                     stty -F ${PORT} hupcl   && ${ARDUINO_SDK_PATH}/hardware/tools/avrdude#${ARDUINO_AVRDUDE_PROGRAM}
                          -U flash:w:${TARGET_NAME}.hex:i
                          ${AVRDUDE_FLAGS}
                          -C ${ARDUINO_AVRDUDE_CONFIG_PATH}

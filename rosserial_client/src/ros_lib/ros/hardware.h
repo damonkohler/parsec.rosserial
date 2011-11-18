@@ -32,48 +32,24 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ROS_ARDUINO_HARDWARE_H_
-#define ROS_ARDUINO_HARDWARE_H_
+#ifndef ROS_HARDWARE_H_
+#define ROS_HARDWARE_H_
 
-#include <WProgram.h>
-#include <HardwareSerial.h>
+#include <stdint.h>
 
-class ArduinoHardware {
-  public:
-    ArduinoHardware(HardwareSerial* iostream=&Serial, long baud=115200)
-        : iostream_(iostream), baud_(baud) {}
+namespace ros {
 
-    void setBaud(long baud) {
-      baud_ = baud;
-    }
-
-    int getBaud() const {
-      return baud_;
-    }
-
-    void init() {
-      iostream_->begin(baud_);
-    }
-
-    int read() {
-      return iostream_->read();
-    }
-
-    void write(uint8_t* data, int length) {
-      iostream_->write(data, length);
-    }
-
-    unsigned long time() const {
-      return millis();
-    }
-
-  protected:
-    long baud_;
-    HardwareSerial* iostream_;
-
-  private:
-    ArduinoHardware(const ArduinoHardware&);
-    void operator=(const ArduinoHardware&);
+class Hardware {
+ public:
+  virtual ~Hardware() {}
+  virtual void setBaud(long baud) = 0;
+  virtual int getBaud() const = 0;
+  virtual void init() = 0;
+  virtual int read() = 0;
+  virtual void write(uint8_t* data, int length) = 0;
+  virtual unsigned long time() const = 0;
 };
 
-#endif
+}  // namespace ros
+
+#endif  // ROS_HARDWARE_H_
