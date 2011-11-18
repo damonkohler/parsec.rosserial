@@ -49,8 +49,8 @@
 #include "rosserial_msgs/Log.h"
 #include "rosserial_msgs/RequestParam.h"
 
-#define SYNC_PERIOD 5  // Synchronize clocks every n seconds.
-#define MSG_TIMEOUT 20  // Message must arrive within n milliseconds.
+#define SYNC_PERIOD 5000  // Synchronize clocks every n milliseconds.
+#define MSG_TIMEOUT 1000  // Message must arrive within n milliseconds.
 
 namespace ros {
 
@@ -80,7 +80,6 @@ void NodeHandle::initNode() {
   hardware_->init();
   error_count_ = 0;
   total_receivers_ = 0;
-  connected_ = false;
   reset();
 }
 
@@ -211,7 +210,7 @@ void NodeHandle::spinOnce() {
   }
 
   // Sync time every SYNC_PERIOD seconds.
-  if (current_time - time_sync_end_ > SYNC_PERIOD * 1000) {
+  if (connected_ && current_time - time_sync_end_ > SYNC_PERIOD) {
     requestTimeSync();
   }
 }
