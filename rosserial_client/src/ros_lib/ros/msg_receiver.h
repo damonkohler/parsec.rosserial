@@ -40,7 +40,7 @@ namespace ros {
   // Base class for objects recieving messages (Services and Subscribers).
   class MsgReceiver {
     public:
-      MsgReceiver() : id_(0), topic_name_(NULL) {}
+      MsgReceiver() : id_(0), topic_name_(0) {}
       virtual ~MsgReceiver() {}
 
       virtual void receive(unsigned char* data) = 0;

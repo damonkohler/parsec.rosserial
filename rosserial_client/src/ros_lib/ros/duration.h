@@ -37,7 +37,7 @@
 
 namespace ros {
 
-  void normalizeSecNsecSigned(long& sec, long& nsec);
+  void normalizeSecNSecSigned(long& sec, long& nsec);
 
   class Duration {
     public:
@@ -49,8 +49,8 @@ namespace ros {
 
       double toSec() const;
       Duration& fromSec(double seconds);
-      unsigned long toNsec();
-      Duration& fromNsec(long nsec);
+      unsigned long toNSec();
+      Duration& fromNSec(long nsec);
 
       Duration& operator+=(const Duration &rhs);
       Duration& operator-=(const Duration &rhs);
