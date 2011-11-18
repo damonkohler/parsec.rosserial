@@ -35,6 +35,7 @@
 #ifndef ROS_NODE_HANDLE_H_
 #define ROS_NODE_HANDLE_H_
 
+#include "time.h"
 #include "subscriber.h"
 #include "service_server.h"
 
@@ -75,14 +76,8 @@ class NodeHandle {
   // This function goes in your loop() function, it handles
   // serial input and callbacks for subscribers.
   void spinOnce();
-
   int getErrorCount() const;
-
-  void requestSyncTime();
-  void syncTime(unsigned char* data);
   Time now() const;
-
-  // Registration
   bool advertise(Publisher& publisher);
 
   // Register a subscriber with the node
@@ -97,13 +92,10 @@ class NodeHandle {
     return registerReceiver((MsgReceiver*) &srv);
   }
 
-  void negotiateTopics();
-
+  bool connected();
   bool getParam(const char* name, int* param, int length=1);
   bool getParam(const char* name, float* param, int length=1);
   bool getParam(const char* name, char** param, int length=1);
-
-  bool connected();
 
  private:
   static const int kMaxSubscribers = 25;
@@ -111,43 +103,33 @@ class NodeHandle {
   static const int kInputSize = 512;
   static const int kOuputSize = 512;
 
+  Hardware* hardware_;
+  NodeOutput<kOuputSize> node_output_;
   bool connected_;
   bool param_received_;
   rosserial_msgs::RequestParamResponse req_param_resp;
-
-  Hardware* hardware_;
-  NodeOutput<kOuputSize> node_output_;
-
   // millis() when the time sync was requested.
   unsigned long time_sync_start_;
   unsigned long time_sync_end_;
-
-  // Time epoch_time_offset_ from the host in milliseconds.
-  unsigned long long epoch_time_offset_;
-
+  Time sync_time_;
   unsigned char message_in[kInputSize];
-
   Publisher* publishers[kMaxPublishers];
   MsgReceiver* receivers[kMaxSubscribers];
-
   // State machine variables for spinOnce
   PacketState state_;
   int remaining_data_bytes_;
   int topic_;
   int data_index_;
   int checksum_;
-
   int error_count_;
   int total_receivers_;
+  unsigned long last_message_time_;
 
-  // used for syncing the time
-  unsigned long last_msg_timeout_time;
-
+  void negotiateTopics();
+  void requestTimeSync();
+  void completeTimeSync(unsigned char* data);
   bool registerReceiver(MsgReceiver* receiver);
-
-  // Reset state
   void reset();
-
   void log(char byte, const char* msg);
   bool requestParam(const char* name, int time_out=1000);
 };
