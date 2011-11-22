@@ -40,25 +40,18 @@
 
 namespace ros {
 
- // This class is responsible for controlling the node ouput.
- // It it is the object that is passed to Publishers and services
-class NodeOutput_ {
- public:
-  // Publishes the provided message and returns the number of bytes
-  // written.
-  virtual int publish(int id, Msg* msg) = 0;
-};
+class NodeOutput {
+ private:
+  static const int kOutputSize = 512;
 
-template<int BUFFER_SIZE>
-class NodeOutput : public NodeOutput_ {
  public:
   NodeOutput(Hardware* hardware) : hardware_(hardware) {}
 
-  virtual int publish(int id, Msg* msg) {
+  int publish(int id, Msg* msg) {
     // TODO(damonkohler): The serialization should check that we don't
     // overflow our buffer.
     int length = msg->serialize(message_out + 6);
-    if (length + 7 > BUFFER_SIZE) {
+    if (length + 7 > kOutputSize) {
       // It would be better to crash horribly. That will probably happen anyway though...
       return 0;
     }
@@ -87,7 +80,7 @@ class NodeOutput : public NodeOutput_ {
 
  private:
   Hardware* hardware_;
-  unsigned char message_out[BUFFER_SIZE];
+  unsigned char message_out[kOutputSize];
 
   NodeOutput(const NodeOutput&);
   void operator=(const NodeOutput&);

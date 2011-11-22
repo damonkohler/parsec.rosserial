@@ -1,36 +1,36 @@
 /*
-* Software License Agreement (BSD License)
-*
-* Copyright (c) 2011, Willow Garage, Inc.
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions
-* are met:
-*
-* * Redistributions of source code must retain the above copyright
-*    notice, this list of conditions and the following disclaimer.
-* * Redistributions in binary form must reproduce the above
-*    copyright notice, this list of conditions and the following
-*    disclaimer in the documentation and/or other materials provided
-*    with the distribution.
-* * Neither the name of Willow Garage, Inc. nor the names of its
-*    contributors may be used to endorse or promote prducts derived
-*    from this software without specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-* FOR A PARTICulAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-* COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-* INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-* BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-* ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-* POSSIBILITY OF SUCH DAMAGE.
-*/
+ * Software License Agreement (BSD License)
+ *
+ * Copyright (c) 2011, Willow Garage, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials provided
+ *    with the distribution.
+ * * Neither the name of Willow Garage, Inc. nor the names of its
+ *    contributors may be used to endorse or promote prducts derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include "node_handle.h"
 
@@ -49,9 +49,6 @@
 #include "rosserial_msgs/Log.h"
 #include "rosserial_msgs/RequestParam.h"
 
-#define SYNC_PERIOD 5000  // Synchronize clocks every n milliseconds.
-#define MSG_TIMEOUT 1000  // Message must arrive within n milliseconds.
-
 namespace ros {
 
 using rosserial_msgs::TopicInfo;
@@ -69,8 +66,7 @@ NodeHandle::NodeHandle(Hardware* hardware)
       data_index_(0),
       checksum_(0),
       error_count_(0),
-      total_receivers_(0),
-      last_message_time_(0) {}
+      total_receivers_(0) {}
 
 Hardware* NodeHandle::getHardware() {
   return hardware_;
@@ -119,15 +115,23 @@ void NodeHandle::reset() {
   topic_ = 0;
   data_index_ = 0;
   checksum_ = 0;
-  last_message_time_ = 0;
 }
 
 void NodeHandle::spinOnce() {
   unsigned long current_time = hardware_->time();
 
-  if (last_message_time_ > 0 &&
-      current_time > last_message_time_ + MSG_TIMEOUT) {
-    reset();
+  if (connected_) {
+    // Connection times out after kConnectionTimeout milliseconds without a
+    // time sync.
+    if (current_time - time_sync_end_ > kConnectionTimeout) {
+      connected_ = false;
+      time_sync_start_ = 0;
+      reset();
+    }
+    // Sync time every kSyncPeriod milliseconds.
+    if (current_time - time_sync_end_ > kSyncPeriod) {
+      requestTimeSync();
+    }
   }
 
   while (true) {
@@ -140,7 +144,6 @@ void NodeHandle::spinOnce() {
       case STATE_FIRST_FF:
         if (inputByte == 0xff) {
           state_ = STATE_SECOND_FF;
-          last_message_time_ = current_time;
         } else {
           reset();
         }
@@ -189,9 +192,9 @@ void NodeHandle::spinOnce() {
           if (topic_ == TOPIC_NEGOTIATION) {
             requestTimeSync();
             negotiateTopics();
-            connected_ = true;
           } else if (topic_ == TopicInfo::ID_TIME) {
             completeTimeSync(message_in);
+            connected_ = true;
           } else if (topic_ == TopicInfo::ID_PARAMETER_REQUEST) {
             req_param_resp.deserialize(message_in);
             param_received_ = true;
@@ -208,11 +211,6 @@ void NodeHandle::spinOnce() {
         // TODO(damonkohler): Crash?
     }
   }
-
-  // Sync time every SYNC_PERIOD seconds.
-  if (connected_ && current_time - time_sync_end_ > SYNC_PERIOD) {
-    requestTimeSync();
-  }
 }
 
 int NodeHandle::getErrorCount() const {
@@ -224,10 +222,10 @@ void NodeHandle::requestTimeSync() {
     // A time sync request is already in flight.
     return;
   }
+  time_sync_start_ = hardware_->time();
   // TODO(damonkohler): Why publish an empty message here?
   std_msgs::Time time;
   node_output_.publish(rosserial_msgs::TopicInfo::ID_TIME, &time);
-  time_sync_start_ = hardware_->time();
 }
 
 void NodeHandle::completeTimeSync(unsigned char* data) {
@@ -254,7 +252,6 @@ Time NodeHandle::now() const {
   return time;
 }
 
-// Registration
 bool NodeHandle::advertise(Publisher& publisher) {
   // TODO(damonkohler): Pull out a publisher registry or keep track of
   // the next available ID.

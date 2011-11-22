@@ -39,26 +39,26 @@
 
 namespace ros {
 
-  void normalizeSecNSec(unsigned long &sec, unsigned long &nsec);
+void normalizeSecNSec(unsigned long &sec, unsigned long &nsec);
 
-  class Time {
-    public:
-      unsigned long sec;
-      unsigned long nsec;
+class Time {
+ public:
+  unsigned long sec;
+  unsigned long nsec;
 
-      Time();
-      Time(unsigned long _sec, unsigned long _nsec);
+  Time();
+  Time(unsigned long _sec, unsigned long _nsec);
 
-      double toSec() const;
-      Time& fromSec(double seconds);
+  double toSec() const;
+  Time& fromSec(double seconds);
 
-      unsigned long toNSec();
-      Time& fromNSec(unsigned long nanoseconds);
+  unsigned long toNSec();
+  Time& fromNSec(unsigned long nanoseconds);
 
-      Time& operator +=(const Duration &rhs);
-      Time& operator -=(const Duration &rhs);
-  };
+  Time& operator +=(const Duration &rhs);
+  Time& operator -=(const Duration &rhs);
+};
 
 }  // namespace ros
 
-#endif
+#endif  // ROS_TIME_H_

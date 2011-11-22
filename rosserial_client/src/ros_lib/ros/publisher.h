@@ -54,7 +54,7 @@ namespace ros {
 
       int getId() { return id_; }
 
-      void setNodeOutput(NodeOutput_* node_output) {
+      void setNodeOutput(NodeOutput* node_output) {
         node_output_ = node_output;
       }
 
@@ -70,7 +70,7 @@ namespace ros {
       const char* topic_name_;
       Msg* msg_;
       int id_;
-      NodeOutput_* node_output_;
+      NodeOutput* node_output_;
 
       Publisher(const Publisher&);
       void operator=(const Publisher&);
