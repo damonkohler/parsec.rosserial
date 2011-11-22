@@ -66,7 +66,7 @@ namespace ros {
 
     private:
       CallbackT callback_;
-      NodeOutput_* node_ouput_;
+      NodeOutput* node_ouput_;
 
       ServiceServer(const ServiceServer&);
       void operator=(const ServiceServer&);
