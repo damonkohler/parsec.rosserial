@@ -1,4 +1,5 @@
 rosserial_arduino/libraries
+rosserial_arduino/lib
 rosserial_arduino/src/rosserial_arduino
 rosserial_msgs/src
 build
@@ -12,4 +13,5 @@ default.properties
 .classpath
 .project
 ./*.swp
+./*.swo
 ./*.pyc

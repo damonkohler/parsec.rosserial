@@ -57,9 +57,12 @@ namespace ros {
 
       virtual ~Subscriber() {}
 
-      virtual void receive(unsigned char* data) {
-        message_.deserialize(data);
-        callback_(message_);
+      virtual bool receive(unsigned char* data, int limit) {
+        bool success = message_.deserialize(data, limit) == limit;
+        if (success) {
+          callback_(message_);
+        }
+        return success;
       }
 
       virtual const char* getMessageType() {

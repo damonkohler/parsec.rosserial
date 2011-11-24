@@ -40,11 +40,11 @@ namespace ros {
   // Message base class
   class Msg {
     public:
-      virtual int serialize(unsigned char* outbuffer) = 0;
-      virtual int deserialize(unsigned char* data) = 0;
+      virtual int serialize(unsigned char* buffer, int limit) = 0;
+      virtual int deserialize(unsigned char* buffer, int limit) = 0;
       virtual const char* getType() = 0;
   };
 
 }  // namespace ros
 
-#endif
+#endif  // ROS_MSG_H_

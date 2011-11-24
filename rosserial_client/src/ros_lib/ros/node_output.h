@@ -48,14 +48,12 @@ class NodeOutput {
   NodeOutput(Hardware* hardware) : hardware_(hardware) {}
 
   int publish(int id, Msg* msg) {
-    // TODO(damonkohler): The serialization should check that we don't
-    // overflow our buffer.
-    int length = msg->serialize(message_out + 6);
-    if (length + 7 > kOutputSize) {
-      // It would be better to crash horribly. That will probably happen anyway though...
-      return 0;
+    // Leave 6 bytes for the header.
+    int length = msg->serialize(message_out + 6, kOutputSize - 6);
+    if (length < 0) {
+      // Serialization failed (buffer limit exceeded).
+      return -1;
     }
-
     // Build the header
     // Sync flags
     message_out[0] = 0xff;
