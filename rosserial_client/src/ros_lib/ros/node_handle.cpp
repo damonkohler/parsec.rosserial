@@ -313,12 +313,12 @@ void NodeHandle::log(char byte, const char* msg) {
 bool NodeHandle::requestParam(const char* name, int time_out) {
   param_received_ = false;
   rosserial_msgs::RequestParamRequest req;
-  req.name  = (char*)name;
+  req.name  = const_cast<char*>(name);
   node_output_.publish(TopicInfo::ID_PARAMETER_REQUEST, &req);
-  int start_time = hardware_->time();
+  unsigned long start_time = hardware_->time();
   while(!param_received_) {
     spinOnce();
-    if (hardware_->time() > start_time + time_out) {
+    if (hardware_->time() - start_time > time_out) {
       return false;
     }
   }
