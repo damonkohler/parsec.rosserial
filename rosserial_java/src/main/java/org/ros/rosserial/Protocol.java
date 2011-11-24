@@ -32,10 +32,6 @@
 
 package org.ros.rosserial;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Map;
-
 import com.google.common.collect.Maps;
 
 import org.ros.message.Message;
@@ -43,6 +39,10 @@ import org.ros.message.MessageDeserializer;
 import org.ros.message.rosserial_msgs.Log;
 import org.ros.message.rosserial_msgs.TopicInfo;
 import org.ros.node.Node;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Map;
 
 /**
  * Protocol handler for rosserial.
@@ -244,7 +244,6 @@ class Protocol {
 				node.getLog()
 						.info("Tried to publish to an unregistered topic: "
 								+ topicId);
-				negotiateTopics();
 			}
 			break;
 		}

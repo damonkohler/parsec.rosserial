@@ -43,7 +43,7 @@ namespace ros {
       MsgReceiver() : id_(0), topic_name_(0) {}
       virtual ~MsgReceiver() {}
 
-      virtual void receive(unsigned char* data) = 0;
+      virtual bool receive(unsigned char* data, int limit) = 0;
       virtual const char* getMessageType() = 0;
 
       void setId(int id) { id_ = id; }

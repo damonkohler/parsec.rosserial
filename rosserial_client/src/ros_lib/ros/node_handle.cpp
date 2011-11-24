@@ -65,18 +65,13 @@ NodeHandle::NodeHandle(Hardware* hardware)
       topic_(0),
       data_index_(0),
       checksum_(0),
-      error_count_(0),
+      invalid_size_error_count_(0),
+      checksum_error_count_(0),
+      malformed_message_error_count_(0),
       total_receivers_(0) {}
 
 Hardware* NodeHandle::getHardware() {
   return hardware_;
-}
-
-void NodeHandle::initNode() {
-  hardware_->init();
-  error_count_ = 0;
-  total_receivers_ = 0;
-  reset();
 }
 
 void NodeHandle::logdebug(const char* msg) {
@@ -117,7 +112,7 @@ void NodeHandle::reset() {
   checksum_ = 0;
 }
 
-void NodeHandle::spinOnce() {
+int NodeHandle::spinOnce() {
   unsigned long current_time = hardware_->time();
 
   if (connected_) {
@@ -134,42 +129,46 @@ void NodeHandle::spinOnce() {
     }
   }
 
-  while (true) {
-    int inputByte = hardware_->read();
-    if (inputByte < 0) {
+  int byte_count;
+  for (byte_count = 0; byte_count < kMaxBytesPerSpin; byte_count++) {
+    int input_byte = hardware_->read();
+    if (input_byte < 0) {
       break;
     }
-    checksum_ += inputByte;
+    checksum_ += input_byte;
     switch (state_) {
       case STATE_FIRST_FF:
-        if (inputByte == 0xff) {
+        if (input_byte == 0xff) {
           state_ = STATE_SECOND_FF;
         } else {
+          state_error_count_++;
           reset();
         }
         break;
       case STATE_SECOND_FF:
-        if (inputByte == 0xff) {
+        if (input_byte == 0xff) {
           state_ = STATE_TOPIC_LOW;
         } else {
+          state_error_count_++;
           reset();
         }
         break;
       case STATE_TOPIC_LOW:
-        topic_ = inputByte;
-        checksum_ = inputByte;  // This is the first byte to be included in the checksum.
+        // This is the first byte to be included in the checksum.
+        checksum_ = input_byte;
+        topic_ = input_byte;
         state_ = STATE_TOPIC_HIGH;
         break;
       case STATE_TOPIC_HIGH:
-        topic_ += inputByte << 8;
+        topic_ += input_byte << 8;
         state_ = STATE_SIZE_LOW;
         break;
       case STATE_SIZE_LOW:
-        remaining_data_bytes_ = inputByte;
+        remaining_data_bytes_ = input_byte;
         state_ = STATE_SIZE_HIGH;
         break;
-      case STATE_SIZE_HIGH:  // top half of message size
-        remaining_data_bytes_ += inputByte << 8;
+      case STATE_SIZE_HIGH:
+        remaining_data_bytes_ += static_cast<uint16_t>(input_byte) << 8;
         if (remaining_data_bytes_ == 0) {
           state_ = STATE_CHECKSUM;
         } else if (remaining_data_bytes_ <= kInputSize) {
@@ -177,17 +176,17 @@ void NodeHandle::spinOnce() {
         } else {
           // Protect against buffer overflow.
           reset();
-          ++error_count_;
+          ++invalid_size_error_count_;
         }
         break;
-      case STATE_MESSAGE:  // message data being received
-        message_in[data_index_++] = inputByte;
+      case STATE_MESSAGE:
+        message_in[data_index_++] = input_byte;
         remaining_data_bytes_--;
-        if (remaining_data_bytes_ == 0) {  // is message complete? if so, checksum
+        if (remaining_data_bytes_ == 0) {
           state_ = STATE_CHECKSUM;
         }
         break;
-      case STATE_CHECKSUM:  // do checksum
+      case STATE_CHECKSUM:
         if ((checksum_ % 256) == 255) {
           if (topic_ == TOPIC_NEGOTIATION) {
             requestTimeSync();
@@ -196,25 +195,43 @@ void NodeHandle::spinOnce() {
             completeTimeSync(message_in);
             connected_ = true;
           } else if (topic_ == TopicInfo::ID_PARAMETER_REQUEST) {
-            req_param_resp.deserialize(message_in);
-            param_received_ = true;
+            if (req_param_resp.deserialize(message_in, kInputSize) >= 0) {
+              param_received_ = true;
+            }
           } else if (topic_ >= 100 && topic_ - 100 < kMaxSubscribers &&
                      receivers[topic_ - 100] != 0) {
-            receivers[topic_ - 100]->receive(message_in);
+            bool success = receivers[topic_ - 100]->receive(message_in, data_index_);
+            if (!success) {
+              ++malformed_message_error_count_;
+            }
           } else {
-            ++error_count_;
+            ++checksum_error_count_;
           }
         }
         reset();
         break;
       default:;
-        // TODO(damonkohler): Crash?
+        reset();
+        break;
     }
   }
+  return byte_count;
 }
 
-int NodeHandle::getErrorCount() const {
-  return error_count_;
+int NodeHandle::getInvalidSizeErrorCount() const {
+  return invalid_size_error_count_;
+}
+
+int NodeHandle::getChecksumErrorCount() const {
+  return checksum_error_count_;
+}
+
+int NodeHandle::getStateErrorCount() const {
+  return state_error_count_;
+}
+
+int NodeHandle::getMalformedMessageErrorCount() const {
+  return malformed_message_error_count_;
 }
 
 void NodeHandle::requestTimeSync() {
@@ -233,7 +250,9 @@ void NodeHandle::completeTimeSync(unsigned char* data) {
   time_sync_end_ = hardware_->time();
   unsigned long offset = (time_sync_end_ - time_sync_start_) / 2;
   std_msgs::Time time;
-  time.deserialize(data);
+  if (time.deserialize(data, kInputSize) < 0) {
+    return;
+  }
   sync_time_ = time.data;
   sync_time_.sec += offset / 1000;
   sync_time_.nsec += (offset % 1000) * 1000000ul;

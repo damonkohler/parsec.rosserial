@@ -62,7 +62,6 @@ class NodeHandle {
  public:
   NodeHandle(Hardware* hardware);
   Hardware* getHardware();
-  void initNode();
 
   void logdebug(const char* msg);
   void loginfo(const char* msg);
@@ -72,8 +71,11 @@ class NodeHandle {
 
   // This function goes in your loop() function, it handles
   // serial input and callbacks for subscribers.
-  void spinOnce();
-  int getErrorCount() const;
+  int spinOnce();
+  int getInvalidSizeErrorCount() const;
+  int getChecksumErrorCount() const;
+  int getStateErrorCount() const;
+  int getMalformedMessageErrorCount() const;
   Time now() const;
   bool advertise(Publisher& publisher);
 
@@ -102,6 +104,7 @@ class NodeHandle {
   static const int kMaxSubscribers = 25;
   static const int kMaxPublishers = 25;
   static const int kInputSize = 512;
+  static const int kMaxBytesPerSpin = 512;
 
   Hardware* hardware_;
   NodeOutput node_output_;
@@ -118,11 +121,14 @@ class NodeHandle {
 
   // State machine variables for spinOnce.
   PacketState state_;
-  int remaining_data_bytes_;
+  uint16_t remaining_data_bytes_;
   int topic_;
   int data_index_;
-  int checksum_;
-  int error_count_;
+  uint8_t checksum_;
+  int invalid_size_error_count_;
+  int checksum_error_count_;
+  int state_error_count_;
+  int malformed_message_error_count_;
   int total_receivers_;
 
   void negotiateTopics();
