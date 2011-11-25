@@ -48,8 +48,8 @@ class NodeOutput {
   NodeOutput(Hardware* hardware) : hardware_(hardware) {}
 
   int publish(int id, Msg* msg) {
-    // Leave 6 bytes for the header.
-    int length = msg->serialize(message_out + 6, kOutputSize - 6);
+    // Leave 6 bytes for the header, 1 byte for the checksum.
+    int length = msg->serialize(message_out + 6, kOutputSize - 7);
     if (length < 0) {
       // Serialization failed (buffer limit exceeded).
       return -1;
@@ -60,10 +60,10 @@ class NodeOutput {
     message_out[1] = 0xff;
     // Topic ID
     message_out[2] = (unsigned char) id & 255;
-    message_out[3] = (unsigned char) id >> 8;
+    message_out[3] = (unsigned char) (id >> 8);
     // Data length
     message_out[4] = (unsigned char) length & 255;
-    message_out[5] = ((unsigned char) length >> 8);
+    message_out[5] = (unsigned char) (length >> 8);
 
     // calculate checksum
     int chk = 0;
