@@ -264,11 +264,8 @@ void NodeHandle::completeTimeSync(unsigned char* data) {
 
 Time NodeHandle::now() const {
   unsigned long offset = hardware_->time() - time_sync_end_;
-  Time time;
-  time.sec = sync_time_.sec + offset / 1000;
-  time.nsec = sync_time_.nsec + (offset % 1000) * 1000000ul;
-  normalizeSecNSec(time.sec, time.nsec);
-  return time;
+  return Time(sync_time_.sec + offset / 1000,
+              sync_time_.nsec + (offset % 1000) * 1000000ul);
 }
 
 bool NodeHandle::advertise(Publisher& publisher) {

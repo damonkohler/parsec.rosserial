@@ -38,51 +38,51 @@
 
 namespace ros {
 
-  void normalizeSecNSec(unsigned long& sec, unsigned long& nsec) {
-    unsigned long sec_part = nsec / 1000000000ul;
-    unsigned long nsec_part = nsec % 1000000000ul;
-    sec += sec_part;
-    nsec = nsec_part;
-  }
+Time::Time() : sec(0), nsec(0) {}
 
-  Time::Time() : sec(0), nsec(0) {}
+Time::Time(unsigned long sec, unsigned long nsec) : sec(sec), nsec(nsec) {
+  normalize();
+}
 
-  Time::Time(unsigned long _sec, unsigned long _nsec) : sec(_sec), nsec(_nsec) {
-    normalizeSecNSec(sec, nsec);
-  }
+Time& Time::operator+=(const Duration &rhs) {
+  sec += rhs.sec;
+  nsec += rhs.nsec;
+  normalize();
+  return *this;
+}
 
-  Time& Time::operator+=(const Duration &rhs) {
-    sec += rhs.sec;
-    nsec += rhs.nsec;
-    normalizeSecNSec(sec, nsec);
-    return *this;
-  }
+Time& Time::operator-=(const Duration &rhs){
+  sec += -1 - rhs.sec;
+  nsec += 1000000000ul - rhs.nsec;
+  normalize();
+  return *this;
+}
 
-  Time& Time::operator-=(const Duration &rhs){
-    sec += -rhs.sec;
-    nsec += -rhs.nsec;
-    normalizeSecNSec(sec, nsec);
-    return *this;
-  }
+double Time::toSec() const {
+  return (double) sec + 1e-9 * (double) nsec;
+}
 
-  double Time::toSec() const {
-    return (double) sec + 1e-9 * (double) nsec;
-  }
+Time& Time::fromSec(double seconds) {
+  sec = (unsigned long) floor(seconds);
+  nsec = (unsigned long) round((seconds - sec) * 1e9);
+  return *this;
+}
 
-  Time& Time::fromSec(double seconds) {
-    sec = (unsigned long) floor(seconds);
-    nsec = (unsigned long) round((seconds - sec) * 1e9);
-    return *this;
-  }
+unsigned long Time::toNSec() {
+  return sec * 1000000000ul + nsec;
+}
 
-  unsigned long Time::toNSec() {
-    return sec * 1000000000ul + nsec;
-  }
+Time& Time::fromNSec(unsigned long nsec_) {
+  sec = 0;
+  nsec = nsec_;
+  normalize();
+  return *this;
+}
 
-  Time& Time::fromNSec(unsigned long nsec) {
-    sec = nsec / 1000000000ul;
-    nsec = nsec % 1000000000ul;
-    return *this;
-  }
+void Time::normalize() {
+  unsigned long sec_part = nsec / 1000000000ul;
+  nsec %= 1000000000ul;
+  sec += sec_part;
+}
 
 }  // namespace ros
