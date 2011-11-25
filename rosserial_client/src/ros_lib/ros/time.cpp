@@ -44,6 +44,16 @@ Time::Time(unsigned long sec, unsigned long nsec) : sec(sec), nsec(nsec) {
   normalize();
 }
 
+double Time::toSec() const {
+  return (double) sec + 1e-9 * (double) nsec;
+}
+
+Time Time::fromSec(double seconds) {
+  unsigned long sec = floor(seconds);
+  unsigned long nsec = round((seconds - sec) * 1e9);
+  return Time(sec, nsec);
+}
+
 Time& Time::operator+=(const Duration &rhs) {
   sec += rhs.sec;
   nsec += rhs.nsec;
@@ -58,25 +68,8 @@ Time& Time::operator-=(const Duration &rhs){
   return *this;
 }
 
-double Time::toSec() const {
-  return (double) sec + 1e-9 * (double) nsec;
-}
-
-Time& Time::fromSec(double seconds) {
-  sec = (unsigned long) floor(seconds);
-  nsec = (unsigned long) round((seconds - sec) * 1e9);
-  return *this;
-}
-
-unsigned long Time::toNSec() {
-  return sec * 1000000000ul + nsec;
-}
-
-Time& Time::fromNSec(unsigned long nsec_) {
-  sec = 0;
-  nsec = nsec_;
-  normalize();
-  return *this;
+Time Time::operator+(const Duration &rhs) const {
+  return Time(sec + rhs.sec, nsec + rhs.nsec);
 }
 
 void Time::normalize() {

@@ -48,21 +48,14 @@ double Duration::toSec() const {
   return (double) sec + 1e-9 * (double) nsec;
 }
 
-Duration& Duration::fromSec(double seconds) {
-  sec = (long) floor(seconds);
-  nsec = (long) round((seconds - sec) * 1e9);
-  return *this;
+Duration Duration::fromSec(double seconds) {
+  long sec = floor(seconds);
+  long nsec = round((seconds - sec) * 1e9);
+  return Duration(sec, nsec);
 }
 
-unsigned long Duration::toNSec() {
-  return sec * 1000000000ul + nsec;
-}
-
-Duration& Duration::fromNSec(long nsec_) {
-  sec = 0;
-  nsec = nsec_;
-  normalize();
-  return *this;
+Duration Duration::fromMillis(long millis) {
+  return Duration(millis / 1000, (millis % 1000) * 1000000l);
 }
 
 Duration& Duration::operator+=(const Duration &rhs) {

@@ -46,9 +46,8 @@ class Duration {
   Duration(long sec, long nsec);
 
   double toSec() const;
-  Duration& fromSec(double seconds);
-  unsigned long toNSec();
-  Duration& fromNSec(long nsec_);
+  static Duration fromSec(double seconds);
+  static Duration fromMillis(long millis);
 
   Duration& operator+=(const Duration &rhs);
   Duration& operator-=(const Duration &rhs);
