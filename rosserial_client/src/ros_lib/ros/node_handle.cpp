@@ -254,8 +254,7 @@ void NodeHandle::completeTimeSync(unsigned char* data) {
     return;
   }
   sync_time_ = time.data;
-  sync_time_.sec += offset / 1000;
-  sync_time_.nsec += (offset % 1000) * 1000000ul;
+  sync_time_ += Duration::fromMillis(offset);
   time_sync_start_ = 0;
   char message[40];
   snprintf(message, 40, "Time: %lu %lu", sync_time_.sec, sync_time_.nsec);
@@ -264,11 +263,7 @@ void NodeHandle::completeTimeSync(unsigned char* data) {
 
 Time NodeHandle::now() const {
   unsigned long offset = hardware_->time() - time_sync_end_;
-  Time time;
-  time.sec = sync_time_.sec + offset / 1000;
-  time.nsec = sync_time_.nsec + (offset % 1000) * 1000000ul;
-  normalizeSecNSec(time.sec, time.nsec);
-  return time;
+  return sync_time_ + Duration::fromMillis(offset);
 }
 
 bool NodeHandle::advertise(Publisher& publisher) {

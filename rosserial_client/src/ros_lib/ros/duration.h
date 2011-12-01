@@ -37,25 +37,25 @@
 
 namespace ros {
 
-  void normalizeSecNSecSigned(long& sec, long& nsec);
+class Duration {
+ public:
+  long sec;
+  long nsec;
 
-  class Duration {
-    public:
-      long sec;
-      long nsec;
+  Duration();
+  Duration(long sec, long nsec);
 
-      Duration();
-      Duration(long _sec, long _nsec);
+  double toSec() const;
+  static Duration fromSec(double seconds);
+  static Duration fromMillis(long millis);
 
-      double toSec() const;
-      Duration& fromSec(double seconds);
-      unsigned long toNSec();
-      Duration& fromNSec(long nsec);
+  Duration& operator+=(const Duration &rhs);
+  Duration& operator-=(const Duration &rhs);
+  Duration& operator*=(double scale);
 
-      Duration& operator+=(const Duration &rhs);
-      Duration& operator-=(const Duration &rhs);
-      Duration& operator*=(double scale);
-  };
+ private:
+  void normalize();
+};
 
 }  // namespace ros
 
