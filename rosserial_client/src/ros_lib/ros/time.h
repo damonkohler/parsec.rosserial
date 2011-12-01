@@ -47,12 +47,14 @@ class Time {
   Time();
   Time(unsigned long sec, unsigned long nsec);
 
-  double toSec() const;
-  static Time fromSec(double seconds);
+  float toSec() const;
+  static Time fromSec(float seconds);
 
   Time& operator+=(const Duration &rhs);
   Time& operator-=(const Duration &rhs);
   Time operator+(const Duration &rhs) const;
+  Time operator-(const Duration &rhs) const;
+  Duration operator-(const Time &rhs) const;
 
  private:
   void normalize();

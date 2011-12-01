@@ -44,13 +44,13 @@ Duration::Duration(long sec, long nsec) : sec(sec), nsec(nsec) {
   normalize();
 }
 
-double Duration::toSec() const {
-  return (double) sec + 1e-9 * (double) nsec;
+float Duration::toSec() const {
+  return sec + 1e-9f * nsec;
 }
 
-Duration Duration::fromSec(double seconds) {
+Duration Duration::fromSec(float seconds) {
   long sec = floor(seconds);
-  long nsec = round((seconds - sec) * 1e9);
+  long nsec = round((seconds - sec) * 1e9f);
   return Duration(sec, nsec);
 }
 
@@ -77,6 +77,14 @@ Duration& Duration::operator*=(double scale) {
   nsec *= scale;
   normalize();
   return *this;
+}
+
+Duration Duration::operator+(const Duration &rhs) const {
+  return Duration(sec + rhs.sec, nsec + rhs.nsec);
+}
+
+Duration Duration::operator-(const Duration &rhs) const {
+  return Duration(sec - rhs.sec, nsec - rhs.nsec);
 }
 
 void Duration::normalize() {
