@@ -34,6 +34,7 @@
 
 #include "ros/time.h"
 
+#include <limits.h>
 #include <math.h>
 
 namespace ros {
@@ -44,13 +45,13 @@ Time::Time(unsigned long sec, unsigned long nsec) : sec(sec), nsec(nsec) {
   normalize();
 }
 
-double Time::toSec() const {
-  return (double) sec + 1e-9 * (double) nsec;
+float Time::toSec() const {
+  return sec + 1e-9f * nsec;
 }
 
-Time Time::fromSec(double seconds) {
+Time Time::fromSec(float seconds) {
   unsigned long sec = floor(seconds);
-  unsigned long nsec = round((seconds - sec) * 1e9);
+  unsigned long nsec = round((seconds - sec) * 1e9f);
   return Time(sec, nsec);
 }
 
@@ -62,6 +63,8 @@ Time& Time::operator+=(const Duration &rhs) {
 }
 
 Time& Time::operator-=(const Duration &rhs){
+  // rhs.nsec is nonnegative, nsec is unsigned. We move one second from
+  // rhs.sec to rhs.nsec to avoid overflow when subtracting from nsec.
   sec += -1 - rhs.sec;
   nsec += 1000000000ul - rhs.nsec;
   normalize();
@@ -70,6 +73,21 @@ Time& Time::operator-=(const Duration &rhs){
 
 Time Time::operator+(const Duration &rhs) const {
   return Time(sec + rhs.sec, nsec + rhs.nsec);
+}
+
+Time Time::operator-(const Duration &rhs) const {
+  // Avoid overflow as for operator-=().
+  return Time(sec - 1 - rhs.sec, nsec + 1000000000ul - rhs.nsec);
+}
+
+Duration Time::operator-(const Time &rhs) const {
+  // Avoid overflow in nsec as for operator-=().
+  unsigned long unsigned_sec_delta = sec - 1 - rhs.sec;
+  // signed long sec_delta = unsigned_sec_delta;  // Two's complement.
+  signed long sec_delta = unsigned_sec_delta < LONG_MAX
+      ? unsigned_sec_delta
+      : -static_cast<signed long>(-unsigned_sec_delta);
+  return Duration(sec_delta, nsec + 1000000000ul - rhs.nsec);
 }
 
 void Time::normalize() {

@@ -45,13 +45,15 @@ class Duration {
   Duration();
   Duration(long sec, long nsec);
 
-  double toSec() const;
-  static Duration fromSec(double seconds);
+  float toSec() const;
+  static Duration fromSec(float seconds);
   static Duration fromMillis(long millis);
 
   Duration& operator+=(const Duration &rhs);
   Duration& operator-=(const Duration &rhs);
   Duration& operator*=(double scale);
+  Duration operator+(const Duration &rhs) const;
+  Duration operator-(const Duration &rhs) const;
 
  private:
   void normalize();

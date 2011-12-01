@@ -59,10 +59,10 @@ class NodeOutput {
     message_out[0] = 0xff;
     message_out[1] = 0xff;
     // Topic ID
-    message_out[2] = (unsigned char) id & 255;
+    message_out[2] = (unsigned char) (id & 255);
     message_out[3] = (unsigned char) (id >> 8);
     // Data length
-    message_out[4] = (unsigned char) length & 255;
+    message_out[4] = (unsigned char) (length & 255);
     message_out[5] = (unsigned char) (length >> 8);
 
     // calculate checksum
