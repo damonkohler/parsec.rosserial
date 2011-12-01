@@ -32,18 +32,16 @@
 
 package org.ros.rosserial;
 
+import org.ros.exception.RosRuntimeException;
+import org.ros.node.Node;
+import org.ros.node.NodeMain;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.BufferOverflowException;
-
-import com.google.common.base.Preconditions;
-
-import org.ros.exception.RosRuntimeException;
-import org.ros.node.Node;
-import org.ros.node.NodeMain;
 
 /**
  * The host endpoint for a rosserial connection.
@@ -53,92 +51,78 @@ import org.ros.node.NodeMain;
  */
 public class RosSerial implements NodeMain {
 
-	private static final int STREAM_BUFFER_SIZE = 8192;
+  private static final int STREAM_BUFFER_SIZE = 8192;
 
-	/**
-	 * Output stream for the serial line used for communication.
-	 */
-	private final OutputStream outputStream;
+  /**
+   * Output stream for the serial line used for communication.
+   */
+  private final OutputStream outputStream;
 
-	/**
-	 * Input stream for the serial line used for communication.
-	 */
-	private final InputStream inputStream;
+  /**
+   * Input stream for the serial line used for communication.
+   */
+  private final InputStream inputStream;
 
-	/**
-	 * The node which is hosting the publishers and subscribers.
-	 */
-	private Node node;
+  private Protocol protocol;
 
-	private Protocol protocol;
+  /**
+   * * It is not necessary to provide buffered streams. Buffering is handled
+   * internally.
+   * 
+   * @param inputStream
+   *          the {@link InputStream} for the connected device
+   * @param outputStream
+   *          the {@link OutputStream} for the connected device
+   */
+  public RosSerial(InputStream inputStream, OutputStream outputStream) {
+    this.inputStream = new BufferedInputStream(inputStream, STREAM_BUFFER_SIZE);
+    this.outputStream = new BufferedOutputStream(outputStream, STREAM_BUFFER_SIZE);
+  }
 
-	/**
-	 * * It is not necessary to provide buffered streams. Buffering is handled
-	 * internally.
-	 * 
-	 * @param inputStream
-	 *            the {@link InputStream} for the connected device
-	 * @param outputStream
-	 *            the {@link OutputStream} for the connected device
-	 */
-	public RosSerial(InputStream inputStream, OutputStream outputStream) {
-		this.inputStream = new BufferedInputStream(inputStream,
-				STREAM_BUFFER_SIZE);
-		this.outputStream = new BufferedOutputStream(outputStream,
-				STREAM_BUFFER_SIZE);
-	}
+  @Override
+  public void onStart(Node node) {
+    PacketSender packetSender = new DefaultPacketSender(outputStream, node.getLog());
+    protocol = new Protocol(node, packetSender);
+    PacketReceiver packetReceiver = new DefaultPacketReceiver(protocol);
+    PacketBuilder packetBuilder = new PacketBuilder(packetReceiver);
+    protocol.start();
 
-	@Override
-	public void main(Node node) {
-		Preconditions.checkState(this.node == null);
-		this.node = node;
-		PacketSender packetSender = new DefaultPacketSender(outputStream,
-				node.getLog());
-		protocol = new Protocol(node, packetSender);
-		PacketReceiver packetReceiver = new DefaultPacketReceiver(protocol);
-		PacketBuilder packetBuilder = new PacketBuilder(packetReceiver);
-		protocol.start();
+    while (true) {
+      try {
+        int inputByte = inputStream.read();
+        if (inputByte == -1) {
+          // The connection has been closed.
+          break;
+        }
+        packetBuilder.addByte((byte) inputByte);
+      } catch (IllegalStateException e) {
+        node.getLog().error("Protocol error.", e);
+      } catch (IOException e) {
+        throw new RosRuntimeException(e);
+      } catch (BufferOverflowException e) {
+        // TODO(damonkohler): Because there is no checksum on the data
+        // length, it's possible to try to read too little or too much
+        // data for the current packet.
+        throw new RosRuntimeException(e);
+      }
+    }
+  }
 
-		while (true) {
-			try {
-				int inputByte = inputStream.read();
-				if (inputByte == -1) {
-					// The connection has been closed.
-					break;
-				}
-				packetBuilder.addByte((byte) inputByte);
-			} catch (IllegalStateException e) {
-				node.getLog().error("Protocol error.", e);
-			} catch (IOException e) {
-				throw new RosRuntimeException(e);
-			} catch (BufferOverflowException e) {
-				// TODO(damonkohler): Because there is no checksum on the data
-				// length, it's possible to try to read too little or too much
-				// data for the current packet.
-				throw new RosRuntimeException(e);
-			}
-		}
-	}
-
-	@Override
-	public void shutdown() {
-		if (protocol != null) {
-			protocol.shutdown();
-			protocol = null;
-		}
-		if (node != null) {
-			node.shutdown();
-			node = null;
-		}
-		try {
-			inputStream.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		try {
-			outputStream.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+  @Override
+  public void onShutdown(Node node) {
+    if (protocol != null) {
+      protocol.shutdown();
+      protocol = null;
+    }
+    try {
+      inputStream.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    try {
+      outputStream.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
 }

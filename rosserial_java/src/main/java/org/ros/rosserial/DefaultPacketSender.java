@@ -32,12 +32,12 @@
 
 package org.ros.rosserial;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
 import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.commons.logging.Log;
+
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * Protocol handler for rosserial.
@@ -46,40 +46,38 @@ import org.apache.commons.logging.Log;
  */
 class DefaultPacketSender implements PacketSender {
 
-	/**
-	 * Flags for marking beginning of packet transmission.
-	 */
-	private static final byte[] FLAGS = { (byte) 0xff, (byte) 0xff };
+  /**
+   * Flags for marking beginning of packet transmission.
+   */
+  private static final byte[] FLAGS = { (byte) 0xff, (byte) 0xff };
 
-	private final Log log;
-	private final OutputStream outputStream;
+  private final Log log;
+  private final OutputStream outputStream;
 
-	public DefaultPacketSender(OutputStream outputStream, Log log) {
-		this.log = log;
-		this.outputStream = outputStream;
-	}
+  public DefaultPacketSender(OutputStream outputStream, Log log) {
+    this.log = log;
+    this.outputStream = outputStream;
+  }
 
-	@Override
-	public void send(byte[] data) {
-		try {
-			outputStream.write(FLAGS);
-			outputStream.write(data);
-			outputStream.write(calculateChecksum(data));
-			outputStream.flush();
-		} catch (IOException e) {
-			log.error(
-					"IO error while writing packet: "
-							+ BinaryUtils.byteArrayToHexString(data), e);
-		}
-	}
+  @Override
+  public void send(byte[] data) {
+    try {
+      outputStream.write(FLAGS);
+      outputStream.write(data);
+      outputStream.write(calculateChecksum(data));
+      outputStream.flush();
+    } catch (IOException e) {
+      log.error("IO error while writing packet: " + BinaryUtils.byteArrayToHexString(data), e);
+    }
+  }
 
-	@VisibleForTesting
-	static byte calculateChecksum(byte[] data) {
-		int chk = 0;
-		for (int i = 0; i < data.length; i++) {
-			chk += 0xff & data[i];
-		}
-		chk = 255 - chk % 256;
-		return (byte) chk;
-	}
+  @VisibleForTesting
+  static byte calculateChecksum(byte[] data) {
+    int chk = 0;
+    for (int i = 0; i < data.length; i++) {
+      chk += 0xff & data[i];
+    }
+    chk = 255 - chk % 256;
+    return (byte) chk;
+  }
 }

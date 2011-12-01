@@ -78,6 +78,7 @@ class Proxy {
   public void registerSubscriber(int topicId, String topicName, String messageType,
       MessageListener<?> listener) {
     Subscriber<?> subscriber = node.newSubscriber(topicName, messageType, listener);
+    subscriber.setQueueLimit(1);
     getSubscribers().put(topicId, subscriber);
     node.getLog().info(
         String.format("Registered subscriber: %d %s %s", topicId, topicName, messageType));
