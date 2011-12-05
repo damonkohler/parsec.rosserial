@@ -66,7 +66,7 @@ public class RosSerial implements NodeMain {
   private Protocol protocol;
 
   /**
-   * * It is not necessary to provide buffered streams. Buffering is handled
+   * It is not necessary to provide buffered streams. Buffering is handled
    * internally.
    * 
    * @param inputStream
