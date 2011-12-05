@@ -32,127 +32,131 @@
 
 package org.ros.rosserial;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 import com.google.common.annotations.VisibleForTesting;
 
 import org.ros.exception.RosRuntimeException;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * @author damonkohler@google.com (Damon Kohler)
  */
 class PacketBuilder {
 
-	private static final boolean DEBUG = false;
+  private static final boolean DEBUG = false;
 
-	private static final int HEADER_BUFFER_SIZE = 4;
-	private static final int DATA_BUFFER_SIZE = 512;
+  private static final int HEADER_BUFFER_SIZE = 4;
+  private static final int DATA_BUFFER_SIZE = 512;
 
-	private final PacketReceiver packetReceiver;
-	private final ByteBuffer header;
-	private final ByteBuffer data;
+  private final PacketReceiver packetReceiver;
+  private final ByteBuffer header;
+  private final ByteBuffer data;
 
-	private PacketState packetState;
-	private short topicId;
-	private short dataLength;
+  private PacketState packetState;
+  private short topicId;
+  private short dataLength;
 
-	/**
-	 * Used for debugging output only.
-	 */
-	private int byteNumber;
+  /**
+   * Used for debugging output only.
+   */
+  private int byteNumber;
 
-	public PacketBuilder(PacketReceiver packetReceiver) {
-		this.packetReceiver = packetReceiver;
-		header = ByteBuffer.allocate(HEADER_BUFFER_SIZE);
-		header.order(ByteOrder.LITTLE_ENDIAN);
-		data = ByteBuffer.allocate(DATA_BUFFER_SIZE);
-		data.order(ByteOrder.LITTLE_ENDIAN);
-		reset();
-	}
+  public PacketBuilder(PacketReceiver packetReceiver) {
+    this.packetReceiver = packetReceiver;
+    header = ByteBuffer.allocate(HEADER_BUFFER_SIZE);
+    header.order(ByteOrder.LITTLE_ENDIAN);
+    data = ByteBuffer.allocate(DATA_BUFFER_SIZE);
+    data.order(ByteOrder.LITTLE_ENDIAN);
+    reset();
+  }
 
-	public void addByte(byte inputByte) {
-		if (DEBUG) {
-			System.out.println(String.format("%8s (byte %3d): %x",
-					packetState.name(), byteNumber, inputByte));
-			byteNumber++;
-		}
-		switch (packetState) {
-		case FLAGA:
-			if (inputByte != (byte) 0xff) {
-				reset();
-				throw new IllegalStateException("First flag byte missing.");
-			}
-			packetState = PacketState.FLAGB;
-			break;
-		case FLAGB:
-			if (inputByte != (byte) 0xff) {
-				reset();
-				throw new IllegalStateException("Second flag byte missing.");
-			}
-			packetState = PacketState.HEADER;
-			break;
-		case HEADER:
-			header.put(inputByte);
-			if (header.position() == 4) {
-				header.flip();
-				topicId = header.getShort();
-				dataLength = header.getShort();
-				if (DEBUG) {
-					System.out.println("Topic ID: " + topicId);
-					System.out.println("Data length: " + dataLength);
-				}
-				if (dataLength > 0) {
-					packetState = PacketState.DATA;
-				} else {
-					packetState = PacketState.CHECKSUM;
-				}
-			}
-			break;
-		case DATA:
-			data.put(inputByte);
-			if (data.position() == dataLength) {
-				packetState = PacketState.CHECKSUM;
-			}
-			break;
-		case CHECKSUM:
-			int checksum = 0;
-			for (int i = 0; i < HEADER_BUFFER_SIZE; i++) {
-				checksum += header.get(i);
-			}
-			for (int i = 0; i < dataLength; i++) {
-				checksum += data.get(i);
-			}
-			checksum = 255 - (checksum % 256);
-			if ((byte) checksum != inputByte) {
-				reset();
-				throw new IllegalStateException(String.format(
-						"Invalid checksum: %x != %x", checksum, inputByte));
-			}
-			byte buffer[] = new byte[dataLength];
-			data.flip();
-			data.get(buffer);
-			packetReceiver.receive(topicId, buffer);
-			reset();
-			break;
-		default:
-			throw new RosRuntimeException("Unknown packet state.");
-		}
-	}
+  public void addByte(byte inputByte) {
+    if (DEBUG) {
+      System.out.println(String.format("%8s (byte %3d): %x", packetState.name(), byteNumber,
+          inputByte));
+      byteNumber++;
+    }
+    switch (packetState) {
+      case FLAGA:
+        if (inputByte != (byte) 0xff) {
+          reset();
+          throw new IllegalStateException("First flag byte missing.");
+        }
+        packetState = PacketState.FLAGB;
+        break;
+      case FLAGB:
+        if (inputByte != (byte) 0xff) {
+          reset();
+          throw new IllegalStateException("Second flag byte missing.");
+        }
+        packetState = PacketState.HEADER;
+        break;
+      case HEADER:
+        header.put(inputByte);
+        if (header.position() == 4) {
+          header.flip();
+          topicId = header.getShort();
+          dataLength = header.getShort();
+          if (DEBUG) {
+            System.out.println("Topic ID: " + topicId);
+            System.out.println("Data length: " + dataLength);
+          }
+          if (dataLength > DATA_BUFFER_SIZE) {
+            reset();
+            throw new IllegalStateException("Data size exceeds maximum.");
+          }
+          if (dataLength > 0) {
+            packetState = PacketState.DATA;
+          } else {
+            packetState = PacketState.CHECKSUM;
+          }
+        }
+        break;
+      case DATA:
+        data.put(inputByte);
+        if (data.position() == dataLength) {
+          packetState = PacketState.CHECKSUM;
+        }
+        break;
+      case CHECKSUM:
+        int checksum = 0;
+        for (int i = 0; i < HEADER_BUFFER_SIZE; i++) {
+          checksum += header.get(i);
+        }
+        for (int i = 0; i < dataLength; i++) {
+          checksum += data.get(i);
+        }
+        checksum = 255 - (checksum % 256);
+        if ((byte) checksum != inputByte) {
+          reset();
+          throw new IllegalStateException(String.format("Invalid checksum: %x != %x", checksum,
+              inputByte));
+        }
+        byte buffer[] = new byte[dataLength];
+        data.flip();
+        data.get(buffer);
+        packetReceiver.receive(topicId, buffer);
+        reset();
+        break;
+      default:
+        throw new RosRuntimeException("Unknown packet state.");
+    }
+  }
 
-	/**
-	 * Reset packet parsing state machine.
-	 */
-	private void reset() {
-		header.clear();
-		data.clear();
-		dataLength = 0;
-		byteNumber = 0;
-		packetState = PacketState.FLAGA;
-	}
+  /**
+   * Reset packet parsing state machine.
+   */
+  private void reset() {
+    header.clear();
+    data.clear();
+    dataLength = 0;
+    byteNumber = 0;
+    packetState = PacketState.FLAGA;
+  }
 
-	@VisibleForTesting
-	PacketState getPacketState() {
-		return packetState;
-	}
+  @VisibleForTesting
+  PacketState getPacketState() {
+    return packetState;
+  }
 }
