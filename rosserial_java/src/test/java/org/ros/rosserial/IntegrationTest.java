@@ -20,8 +20,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
-
 import org.junit.Test;
 import org.ros.RosCore;
 import org.ros.internal.node.DefaultNodeFactory;
@@ -33,6 +31,7 @@ import org.ros.node.Node;
 import org.ros.node.NodeConfiguration;
 import org.ros.node.NodeRunner;
 import org.ros.node.topic.CountDownSubscriberListener;
+import org.ros.node.topic.Subscriber;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -60,14 +59,16 @@ public class IntegrationTest {
 
     CountDownSubscriberListener subscriberListener = new CountDownSubscriberListener();
     final CountDownLatch latch = new CountDownLatch(1);
-    node.newSubscriber("hello_world", "std_msgs/String",
-        new MessageListener<org.ros.message.std_msgs.String>() {
-          @Override
-          public void onNewMessage(org.ros.message.std_msgs.String message) {
-            assertEquals("Hello, world!", message.data);
-            latch.countDown();
-          }
-        }, Lists.newArrayList(subscriberListener));
+    Subscriber<org.ros.message.std_msgs.String> subscriber =
+        node.newSubscriber("hello_world", "std_msgs/String");
+    subscriber.addMessageListener(new MessageListener<org.ros.message.std_msgs.String>() {
+      @Override
+      public void onNewMessage(org.ros.message.std_msgs.String message) {
+        assertEquals("Hello, world!", message.data);
+        latch.countDown();
+      }
+    });
+    subscriber.addSubscriberListener(subscriberListener);
     assertTrue(subscriberListener.awaitMasterRegistrationSuccess(5, TimeUnit.SECONDS));
 
     // Create client (e.g. Arduino) and host (e.g. tablet) streams.

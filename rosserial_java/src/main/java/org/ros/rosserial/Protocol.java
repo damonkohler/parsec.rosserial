@@ -199,11 +199,21 @@ class Protocol {
     TopicInfo topicInfo = new TopicInfo();
     switch (topicId) {
     case TopicInfo.ID_PUBLISHER:
-      topicInfo.deserialize(data);
+      try {
+        topicInfo.deserialize(data);
+      } catch (Exception e) {
+        node.getLog().error(e);
+        return;
+      }
       registerPublisher(topicInfo);
       break;
     case TopicInfo.ID_SUBSCRIBER:
-      topicInfo.deserialize(data);
+      try {
+        topicInfo.deserialize(data);
+      } catch (Exception e) {
+        node.getLog().error(e);
+        return;
+      }
       registerSubscriber(topicInfo);
       break;
     case TopicInfo.ID_SERVICE_SERVER:
@@ -230,12 +240,17 @@ class Protocol {
       if (messageDeserializer != null) {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
-        Message message = (Message) messageDeserializer.deserialize(buffer);
+        Message message;
+        try {
+          message = (Message) messageDeserializer.deserialize(buffer);
+        } catch (Exception e) {
+          node.getLog().error(e);
+          return;
+        }
         proxy.publish(topicId, message);
       } else {
         node.getLog().info("Tried to publish to an unregistered topic: " + topicId);
       }
-      break;
     }
   }
 
@@ -248,7 +263,12 @@ class Protocol {
    */
   private void handleLogging(byte[] data) {
     Log log = new Log();
-    log.deserialize(data);
+    try {
+      log.deserialize(data);
+    } catch (Exception e) {
+      node.getLog().error(e);
+      return;
+    }
     switch (log.level) {
     case Log.DEBUG:
       node.getLog().debug(log.msg);

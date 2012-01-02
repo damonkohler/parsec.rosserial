@@ -51,6 +51,8 @@ import java.nio.BufferOverflowException;
  */
 public class RosSerial implements NodeMain {
 
+  private static final boolean DEBUG = false;
+
   private static final int STREAM_BUFFER_SIZE = 8192;
 
   /**
@@ -96,7 +98,9 @@ public class RosSerial implements NodeMain {
         }
         packetBuilder.addByte((byte) inputByte);
       } catch (IllegalStateException e) {
-        node.getLog().error("Protocol error.", e);
+        if (DEBUG) {
+          node.getLog().error("Protocol error.", e);
+        }
       } catch (IOException e) {
         throw new RosRuntimeException(e);
       } catch (BufferOverflowException e) {
@@ -110,6 +114,10 @@ public class RosSerial implements NodeMain {
 
   @Override
   public void onShutdown(Node node) {
+  }
+
+  @Override
+  public void onShutdownComplete(Node node) {
     if (protocol != null) {
       protocol.shutdown();
       protocol = null;
