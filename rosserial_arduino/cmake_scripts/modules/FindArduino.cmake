@@ -265,6 +265,12 @@ macro(setup_arduino_compiler BOARD_ID)
         set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS}    -mmcu=${${BOARD_ID}.build.mcu}" PARENT_SCOPE)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -mmcu=${${BOARD_ID}.build.mcu}" PARENT_SCOPE)
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -mmcu=${${BOARD_ID}.build.mcu}" PARENT_SCOPE)
+
+        set(BOARD_VARIANT ${${BOARD_ID}.build.variant})
+        if(BOARD_VARIANT)
+            set(BOARD_VARIANT_PATH "${ARDUINO_VARIANTS_PATH}/${BOARD_VARIANT}")
+            include_directories("${BOARD_VARIANT_PATH}")
+        endif()
     endif()
 endmacro()
 
@@ -506,6 +512,13 @@ function(detect_arduino_version VAR_NAME)
         file(READ ${ARDUINO_VERSION_PATH} ARD_VERSION)
         if("${ARD_VERSION}" MATCHES " *[0]+([0-9]+)")
             set(${VAR_NAME} ${CMAKE_MATCH_1} PARENT_SCOPE)
+        elseif("${ARD_VERSION}" MATCHES " *([0-9]+)\\.([0-9]+)")
+            string(LENGTH ${CMAKE_MATCH_2} ARD_SUBVERSION_LEN)
+            if(${ARD_SUBVERSION_LEN} EQUAL 2)
+               set(${VAR_NAME} "${CMAKE_MATCH_1}${CMAKE_MATCH_2}" PARENT_SCOPE)
+            else()
+               set(${VAR_NAME} "${CMAKE_MATCH_1}0${CMAKE_MATCH_2}" PARENT_SCOPE)
+            endif()
         endif()
     endif()
 endfunction()
@@ -520,6 +533,11 @@ if(NOT ARDUINO_FOUND)
 message(STATUS "The arduino sdk path is ${ARDUINO_SDK_PATH}")
     find_file(ARDUINO_CORES_PATH
               NAMES cores
+              PATHS ${ARDUINO_SDK_PATH}
+              PATH_SUFFIXES hardware/arduino)
+
+    find_file(ARDUINO_VARIANTS_PATH
+              NAMES variants
               PATHS ${ARDUINO_SDK_PATH}
               PATH_SUFFIXES hardware/arduino)
 
