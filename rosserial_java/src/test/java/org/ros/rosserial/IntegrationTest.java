@@ -57,7 +57,6 @@ public class IntegrationTest {
     nodeConfiguration.setNodeName("node");
     Node node = nodeFactory.newNode(nodeConfiguration);
 
-    CountDownSubscriberListener subscriberListener = new CountDownSubscriberListener();
     final CountDownLatch latch = new CountDownLatch(1);
     Subscriber<org.ros.message.std_msgs.String> subscriber =
         node.newSubscriber("hello_world", "std_msgs/String");
@@ -68,6 +67,8 @@ public class IntegrationTest {
         latch.countDown();
       }
     });
+    CountDownSubscriberListener<org.ros.message.std_msgs.String> subscriberListener =
+        CountDownSubscriberListener.newDefault();
     subscriber.addSubscriberListener(subscriberListener);
     assertTrue(subscriberListener.awaitMasterRegistrationSuccess(5, TimeUnit.SECONDS));
 
