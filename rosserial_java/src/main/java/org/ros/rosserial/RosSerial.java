@@ -32,7 +32,9 @@
 
 package org.ros.rosserial;
 
+import org.ros.concurrent.CancellableLoop;
 import org.ros.exception.RosRuntimeException;
+import org.ros.namespace.GraphName;
 import org.ros.node.Node;
 import org.ros.node.NodeMain;
 
@@ -82,34 +84,42 @@ public class RosSerial implements NodeMain {
   }
 
   @Override
-  public void onStart(Node node) {
+  public GraphName getDefaultNodeName() {
+    return new GraphName("rosserial");
+  }
+  
+  @Override
+  public void onStart(final Node node) {
     PacketSender packetSender = new DefaultPacketSender(outputStream, node.getLog());
     protocol = new Protocol(node, packetSender);
     PacketReceiver packetReceiver = new DefaultPacketReceiver(protocol);
-    PacketBuilder packetBuilder = new PacketBuilder(packetReceiver);
+    final PacketBuilder packetBuilder = new PacketBuilder(packetReceiver);
     protocol.start();
-
-    while (true) {
-      try {
-        int inputByte = inputStream.read();
-        if (inputByte == -1) {
-          // The connection has been closed.
-          break;
+    node.executeCancellableLoop(new CancellableLoop() {
+      @Override
+      protected void loop() throws InterruptedException {
+        try {
+          int inputByte = inputStream.read();
+          if (inputByte == -1) {
+            // The connection has been closed.
+            cancel();
+            return;
+          }
+          packetBuilder.addByte((byte) inputByte);
+        } catch (IllegalStateException e) {
+          if (DEBUG) {
+            node.getLog().error("Protocol error.", e);
+          }
+        } catch (IOException e) {
+          throw new RosRuntimeException(e);
+        } catch (BufferOverflowException e) {
+          // TODO(damonkohler): Because there is no checksum on the data
+          // length, it's possible to try to read too little or too much
+          // data for the current packet.
+          throw new RosRuntimeException(e);
         }
-        packetBuilder.addByte((byte) inputByte);
-      } catch (IllegalStateException e) {
-        if (DEBUG) {
-          node.getLog().error("Protocol error.", e);
-        }
-      } catch (IOException e) {
-        throw new RosRuntimeException(e);
-      } catch (BufferOverflowException e) {
-        // TODO(damonkohler): Because there is no checksum on the data
-        // length, it's possible to try to read too little or too much
-        // data for the current packet.
-        throw new RosRuntimeException(e);
       }
-    }
+    });
   }
 
   @Override
