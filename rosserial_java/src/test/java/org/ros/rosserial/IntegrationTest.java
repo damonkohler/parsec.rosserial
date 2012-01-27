@@ -20,17 +20,20 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.ros.RosCore;
-import org.ros.internal.node.DefaultNodeFactory;
-import org.ros.internal.node.NodeFactory;
+import org.ros.concurrent.CancellableLoop;
+import org.ros.concurrent.Holder;
 import org.ros.message.MessageListener;
 import org.ros.message.rosserial_msgs.TopicInfo;
-import org.ros.node.DefaultNodeRunner;
+import org.ros.namespace.GraphName;
+import org.ros.node.DefaultNodeMainExecutor;
 import org.ros.node.Node;
 import org.ros.node.NodeConfiguration;
-import org.ros.node.NodeRunner;
-import org.ros.node.topic.CountDownSubscriberListener;
+import org.ros.node.NodeMain;
+import org.ros.node.NodeMainExecutor;
 import org.ros.node.topic.Subscriber;
 
 import java.io.BufferedInputStream;
@@ -45,32 +48,57 @@ import java.util.concurrent.TimeUnit;
  */
 public class IntegrationTest {
 
+  private RosCore rosCore;
+  private NodeConfiguration nodeConfiguration;
+  private NodeMainExecutor nodeMainExecutor;
+
+  @Before
+  public void setUp() throws InterruptedException {
+    rosCore = RosCore.newPrivate();
+    rosCore.start();
+    assertTrue(rosCore.awaitStart(1, TimeUnit.SECONDS));
+    nodeMainExecutor = DefaultNodeMainExecutor.newDefault();
+    nodeConfiguration = NodeConfiguration.newPrivate(rosCore.getUri());
+  }
+
+  @After
+  public void tearDown() {
+    nodeMainExecutor.shutdown();
+    rosCore.shutdown();
+  }
+
   @Test
   public void testSubscribeToSerialPublisher() throws IOException, InterruptedException {
-    RosCore core = RosCore.newPrivate();
-    core.start();
-    core.awaitStart();
-
-    NodeRunner nodeRunner = DefaultNodeRunner.newDefault();
-    NodeFactory nodeFactory = new DefaultNodeFactory();
-    NodeConfiguration nodeConfiguration = NodeConfiguration.newPrivate(core.getUri());
-    nodeConfiguration.setNodeName("node");
-    Node node = nodeFactory.newNode(nodeConfiguration);
-
     final CountDownLatch latch = new CountDownLatch(1);
-    Subscriber<org.ros.message.std_msgs.String> subscriber =
-        node.newSubscriber("hello_world", "std_msgs/String");
-    subscriber.addMessageListener(new MessageListener<org.ros.message.std_msgs.String>() {
+    final Holder<Node> holder = Holder.newEmpty();
+    nodeMainExecutor.execute(new NodeMain() {
       @Override
-      public void onNewMessage(org.ros.message.std_msgs.String message) {
-        assertEquals("Hello, world!", message.data);
-        latch.countDown();
+      public void onStart(Node node) {
+        holder.set(node);
+        Subscriber<org.ros.message.std_msgs.String> subscriber =
+            node.newSubscriber("hello_world", "std_msgs/String");
+        subscriber.addMessageListener(new MessageListener<org.ros.message.std_msgs.String>() {
+          @Override
+          public void onNewMessage(org.ros.message.std_msgs.String message) {
+            assertEquals("Hello, world!", message.data);
+            latch.countDown();
+          }
+        });
       }
-    });
-    CountDownSubscriberListener<org.ros.message.std_msgs.String> subscriberListener =
-        CountDownSubscriberListener.newDefault();
-    subscriber.addSubscriberListener(subscriberListener);
-    assertTrue(subscriberListener.awaitMasterRegistrationSuccess(5, TimeUnit.SECONDS));
+
+      @Override
+      public GraphName getDefaultNodeName() {
+        return new GraphName("node");
+      }
+
+      @Override
+      public void onShutdown(Node node) {
+      }
+
+      @Override
+      public void onShutdownComplete(Node node) {
+      }
+    }, nodeConfiguration);
 
     // Create client (e.g. Arduino) and host (e.g. tablet) streams.
     PipedInputStream clientInputStream = new PipedInputStream();
@@ -83,7 +111,7 @@ public class IntegrationTest {
 
     RosSerial rosSerial = new RosSerial(new BufferedInputStream(hostInputStream), hostOutputStream);
     nodeConfiguration.setNodeName("rosserial");
-    nodeRunner.run(rosSerial, nodeConfiguration);
+    nodeMainExecutor.execute(rosSerial, nodeConfiguration);
 
     // Topic negotiation request.
     byte[] expectedTopicNegotiationBuffer =
@@ -92,7 +120,8 @@ public class IntegrationTest {
     clientInputStream.read(topicNegotiationBuffer);
     assertArrayEquals(expectedTopicNegotiationBuffer, topicNegotiationBuffer);
 
-    final PacketSender packetSender = new DefaultPacketSender(clientOutputStream, node.getLog());
+    final PacketSender packetSender =
+        new DefaultPacketSender(clientOutputStream, holder.get().getLog());
 
     // Topic negotiation response.
     TopicInfo topicInfo = new TopicInfo();
@@ -103,28 +132,16 @@ public class IntegrationTest {
     packetSender.send(data);
 
     // Publish hello world over serial continuously.
-    Thread publisherThread = new Thread() {
+    nodeMainExecutor.getScheduledExecutorService().execute(new CancellableLoop() {
       @Override
-      public void run() {
-        while (!Thread.currentThread().isInterrupted()) {
-          org.ros.message.std_msgs.String helloWorld = new org.ros.message.std_msgs.String();
-          helloWorld.data = "Hello, world!";
-          byte[] data = Protocol.constructMessage(101, helloWorld);
-          packetSender.send(data);
-          try {
-            Thread.sleep(500);
-          } catch (InterruptedException e) {
-            // Cancelable
-          }
-        }
+      public void loop() throws InterruptedException {
+        org.ros.message.std_msgs.String helloWorld = new org.ros.message.std_msgs.String();
+        helloWorld.data = "Hello, world!";
+        byte[] data = Protocol.constructMessage(101, helloWorld);
+        packetSender.send(data);
+        Thread.sleep(500);
       };
-    };
-    publisherThread.start();
-
+    });
     assertTrue(latch.await(5, TimeUnit.SECONDS));
-
-    publisherThread.interrupt();
-    nodeRunner.shutdownNodeMain(rosSerial);
-    node.shutdown();
   }
 }
